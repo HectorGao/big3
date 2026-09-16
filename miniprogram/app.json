@@ -1,0 +1,13 @@
+{
+  "pages": ["pages/overview/overview","pages/today/today","pages/atlas/atlas","pages/history/history","pages/profile/profile"],
+  "window": {"navigationBarTitleText":"三项训练","navigationBarBackgroundColor":"#fafbf9","navigationBarTextStyle":"black","backgroundColor":"#fafbf9"},
+  "tabBar": {"color":"#767d77","selectedColor":"#cf4141","backgroundColor":"#ffffff","borderStyle":"white","list":[
+    {"pagePath":"pages/overview/overview","text":"概览"},
+    {"pagePath":"pages/today/today","text":"今日训练"},
+    {"pagePath":"pages/atlas/atlas","text":"肌肉图谱"},
+    {"pagePath":"pages/history/history","text":"训练记录"},
+    {"pagePath":"pages/profile/profile","text":"我的"}
+  ]},
+  "style":"v2",
+  "sitemapLocation":"sitemap.json"
+}

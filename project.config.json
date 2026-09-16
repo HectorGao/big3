@@ -1,0 +1,9 @@
+{
+  "description": "三项训练 - 原生微信小程序",
+  "miniprogramRoot": "miniprogram/",
+  "compileType": "miniprogram",
+  "appid": "touristappid",
+  "projectname": "three-lift",
+  "setting": {"es6":true,"enhance":true,"minified":true,"urlCheck":true},
+  "packOptions": {"ignore":[],"include":[]}
+}

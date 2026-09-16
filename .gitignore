@@ -1,0 +1,20 @@
+node_modules/
+.DS_Store
+project.private.config.json
+*.log
+
+# Local credentials and machine-specific configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# User training exports and local backups
+three-lift-*.json
+backups/
+
+# Generated test output
+coverage/
+playwright-report/
+test-results/

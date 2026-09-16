@@ -1,0 +1,2 @@
+.pb-block{padding:30rpx 0;border-bottom:1rpx solid #e0e5de}.picker-value{padding:24rpx 20rpx;background:#f0f3ed;border-radius:8rpx;display:flex;justify-content:space-between;font-size:26rpx}
+.estimate-panel{margin-top:20rpx;padding:22rpx;background:#edf3e9;border-left:4rpx solid #66825e}.estimate-panel .metric{font-size:40rpx;margin:10rpx 0}

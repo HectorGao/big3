@@ -1,0 +1,1 @@
+<canvas type="2d" id="figure" class="figure" aria-label="{{label}}动作示意"/><view class="caption"><button bindtap="step" aria-label="上一阶段">‹</button><text>{{phase===0?'起始姿势':exerciseId==='plank'?'保持姿势':'关键终点'}}</text><button bindtap="step" aria-label="下一阶段">›</button></view>

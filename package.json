@@ -1,0 +1,12 @@
+{
+  "name": "three-lift-mini",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "preview": "node preview/server.js"
+  },
+  "devDependencies": {
+    "lucide": "^1.43.0"
+  }
+}

@@ -1,0 +1,1 @@
+<canvas type="2d" id="anatomy" class="anatomy" style="height:{{height}}rpx" bindtouchend="select" aria-label="肌肉部位图，下方也可按名称选择" />
