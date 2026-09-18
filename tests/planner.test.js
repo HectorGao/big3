@@ -24,14 +24,14 @@ if (fs.existsSync(modulePath)) {
   test('no PB and beginners never receive heavy recommendations', () => {
     assert.equal(plan({pb:{}}).mode, 'technique');
     assert.equal(plan({pb:{}}).exercises[0].calibration, true);
-    assert.ok(plan({pb:{}}).exercises[0].weight <= 10);
+    assert.equal(plan({pb:{}}).exercises[0].weight,null);
     assert.equal(plan({experience:'beginner'},[past('2026-09-05')]).mode, 'technique');
     assert.equal(plan({pb:{squat:{weight:100,reps:1,date:'2025-09-01'}}}).mode, 'technique');
   });
   test('cycles advance only on completed main sessions, never missed dates', () => {
     assert.equal(plan().mode, 'volume');
     assert.equal(plan({},[past('2026-09-05')]).mode, 'intensity');
-    assert.equal(plan({},[past('2026-09-05','intensity')]).mode, 'recovery');
+    assert.equal(plan({},[past('2026-09-05','intensity')]).mode, 'volume');
     assert.equal(plan({},[past('2026-09-05','recovery')]).mode, 'volume');
     assert.equal(plan({},[{...past('2026-09-05'),completed:false}]).mode, 'volume');
     assert.equal(plan({},[past('2026-09-10')]).mode, 'volume');
@@ -39,8 +39,8 @@ if (fs.existsSync(modulePath)) {
   });
   test('pain blocks training and recent posterior-chain sessions force rest', () => {
     assert.equal(plan({},[],{pain:true}).mode, 'rest');
-    assert.equal(plan({},[past(date)]).mode, 'rest');
-    assert.equal(plan({},[past('2026-09-08','intensity','deadlift')]).mode, 'rest');
+    assert.equal(plan({},[past(date)]).mode, 'recovery');
+    assert.equal(plan({},[past('2026-09-08','intensity','deadlift')]).mode, 'recovery');
     assert.equal(plan({},[],{fatigue:5}).mode, 'rest');
     assert.equal(plan({},[{...past('2026-09-05'),rpe:10}]).mode, 'recovery');
   });

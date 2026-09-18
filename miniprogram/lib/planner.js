@@ -1,7 +1,7 @@
 (function () {
   const C = typeof module !== 'undefined' ? require('./catalog') : globalThis.MuscleCatalog;
   const S = typeof module !== 'undefined' ? require('./science') : globalThis.MuscleScience;
-  const modes = { setup:'完善资料', volume:'容量日', intensity:'强度日', recovery:'恢复日', technique:'技术日', rest:'休息日' };
+  const modes = { setup:'完善资料', volume:'容量日', intensity:'强度日', recovery:'恢复日', technique:'技术日', deload:'减量日', test:'冲刺日', assessment:'次极限评估', manual:'补记训练', rest:'休息日' };
   const DAY = 86400000;
   const dateKey = (d = new Date()) => [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
   function validDate(s) {
@@ -18,6 +18,9 @@
     if(!['strength','muscle'].includes(p.goal)) return '请选择训练目标。';
     if(!Array.isArray(p.days)||!p.days.length||p.days.length>7||new Set(p.days).size!==p.days.length||p.days.some(d=>!Number.isInteger(d)||d<0||d>6)) return '请至少选择一个可训练日。';
     if(![0.5,1,1.25,2.5,5].includes(Number(p.increment))) return '请选择可用的总重量增量。';
+    if(p.equipment!==undefined&&(!Array.isArray(p.equipment)||p.equipment.some(e=>!C.equipment.slice(1).includes(e))))return '器械选项无效。';
+    if(p.exerciseIncrements!==undefined&&(!p.exerciseIncrements||typeof p.exerciseIncrements!=='object'||Array.isArray(p.exerciseIncrements)||Object.entries(p.exerciseIncrements).some(([id,n])=>!C.byId(id)||!numberIn(n,0.25,50))))return '动作最小加重档位无效。';
+    if(p.machineIds!==undefined&&(!p.machineIds||typeof p.machineIds!=='object'||Array.isArray(p.machineIds)||Object.entries(p.machineIds).some(([id,value])=>!C.byId(id)||typeof value!=='string'||!value.trim()||value.length>80)))return '器械标识无效。';
     if(!p.pb || typeof p.pb!=='object'||Array.isArray(p.pb)) return 'PB 数据格式不正确。';
     for(const [lift,pb] of Object.entries(p.pb)) {
       if(!C.lifts.some(l=>l.id===lift)) return '未知三大项。';
@@ -30,98 +33,83 @@
     if(!numberIn(weight,1,600)||!numberIn(reps,1,10)||!Number.isInteger(Number(reps))) throw new Error('PB 数值无效');
     return Number(reps)===1 ? Number(weight) : Math.round(Number(weight)*(1+Number(reps)/30)*10)/10;
   }
-  const starters={squat:[0.15,10],bench:[0.10,10],deadlift:[0.20,15],goblet:[0.08,6],split:[0.04,4],legpress:[0.20,15],dbbench:[0.05,5],lateral:[0.025,2],pressdown:[0.06,5],rdl:[0.15,10],'db-rdl':[0.06,5],sumo:[0.20,15],'curl-leg':[0.06,5],row:[0.06,5],pulldown:[0.12,10],facepull:[0.04,4],curl:[0.03,3]};
-  function prescribe(id,profile,history,mode,{sets=2,reps=10,rir=3,main=false,date=dateKey()}={}) {
+  function compatibleLoad(row,ex,machineId='default'){
+    if(row.loadConvention)return row.loadConvention===ex.loadConvention&&(!['machine-stack','assistance'].includes(ex.loadConvention)||(row.machineId||'default')===machineId);
+    // Legacy free-weight barbell values are unambiguous; other equipment needs confirmation.
+    return ex.loadConvention==='barbell-total'||ex.loadConvention==='bodyweight';
+  }
+  function prescribe(id,profile,history,mode,{sets=2,reps=10,rir=3,main=false,date=dateKey(),calibrations=[],machineId='default'}={}) {
     const ex=C.byId(id);if(!ex)throw Error('未知动作');
-    const increment=ex.equipment==='哑铃'?0.5:Number(profile.increment);
-    const effort=(mode==='recovery'||mode==='technique')?4:rir;
-    const prior=history.find(r=>r.sets.some(s=>s.exercise===id&&s.done));
-    const rows=prior?prior.sets.filter(s=>s.exercise===id&&s.done):[];
-    let capacity=null,weight=0,source='自重 · 额外负重 0 kg',calibration=false;
-    const pb=profile.pb[id];const estimate=pb&&S.estimatePB(pb.weight,pb.reps,profile.weight);
-    if(estimate && daysBetween(date,pb.date)>=0 && daysBetween(date,pb.date)<=180){
-      capacity=S.trainingMax(profile,estimate);
-      const rated=rows.length&&rows.every(s=>s.rir!==null&&s.rir!==undefined&&Number(s.rir)>=0&&Number(s.rir)<=5);
-      const previousRecord=history.filter(r=>r.sets.some(s=>s.exercise===id&&s.done))[1];
-      if(rated&&prior.completed&&previousRecord&&previousRecord.sets.filter(s=>s.exercise===id&&s.done).every(s=>s.rir!=null&&s.rir>=3&&s.reps>=(s.targetReps||reps))&&rows.every(s=>Number(s.reps)>=Number(s.targetReps||reps)&&Number(s.rir)>=3)) {
-        const previous=Number(rows[0].capacity)||capacity;
-        capacity=Math.min(previous*1.025,estimate.low*1.1);
+    const increment=Number(profile.exerciseIncrements?.[id]||(ex.equipment==='哑铃'?0.5:profile.increment));
+    const effort=mode==='recovery'?5:mode==='technique'||mode==='deload'?Math.max(4,rir):rir;
+    const bodyweight=ex.loadConvention==='bodyweight',assistance=ex.loadConvention==='assistance';
+    const eligibleRows=r=>r.sets.filter(s=>s.exercise===id&&s.done&&!s.warmup&&!s.calibration&&s.success!==false&&s.quality!==false&&compatibleLoad(s,ex,machineId));
+    const prior=history.filter((r,i)=>history.findIndex(x=>x.id===r.id)===i&&r.date<=date&&daysBetween(date,r.date)<=90&&eligibleRows(r).length).sort((a,b)=>b.date.localeCompare(a.date));
+    const rows=prior[0]?eligibleRows(prior[0]):[];
+    const trials=calibrations.filter(t=>t.exercise===id&&t.accepted&&t.quality&&t.date<=date&&daysBetween(date,t.date)<=60&&compatibleLoad(t,ex,machineId)).sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id));
+    const latestAttempt=history.filter(r=>r.date<=date&&daysBetween(date,r.date)<=7&&r.sets.some(s=>s.exercise===id&&s.done&&compatibleLoad(s,ex,machineId))).sort((a,b)=>b.date.localeCompare(a.date))[0];
+    const failedAttempt=latestAttempt?.sets.some(s=>s.exercise===id&&s.done&&(s.success===false||s.quality===false));
+    let capacity=null,weight=bodyweight?0:null,source=bodyweight?'自重动作：以姿势、幅度和难度控制，不自动加公斤数':'待试重：没有可靠的同动作、同器械负荷';
+    const pb=profile.pb[id],estimate=pb&&daysBetween(date,pb.date)>=0&&daysBetween(date,pb.date)<=180?S.estimatePB(pb.weight,pb.reps):null;
+    let recent=trials[0]&&(!prior[0]||trials[0].date>=prior[0].date)?trials[0]:rows[0];
+    if(main&&recent&&estimate&&Number(recent.weight)>estimate.high*1.2){recent=null;source='异常高成绩需核实；暂不提高处方';}
+    if(!bodyweight){
+      if(recent){
+        const reserveKnown=numberIn(recent.rir,0,5),sameReps=Number(recent.reps)===reps;
+        if(sameReps){weight=Number(recent.weight);source='同动作实际记录 '+(recent.date||prior[0]?.date)+'；按当前器械标重';}
+        if(!assistance&&reserveKnown&&Number(recent.reps)<=10&&Number(recent.reps)+Number(recent.rir)<=12&&Number(recent.weight)>0){
+          capacity=Number(recent.weight)*(1+(Number(recent.reps)+Number(recent.rir))/30);
+          if(!sameReps&&reps+effort<=12&&reps<=10){weight=S.loadForReps(capacity,reps,effort,increment);source='同动作实际组与余力估算；热身后确认';}
+        }
+        if(!sameReps&&weight===null)source='目标次数变化，原记录不足以可靠换算；需重新试重';
+        const stable=prior.length>=2&&prior.slice(0,2).every(r=>{
+          const done=eligibleRows(r),target=done[0]?.targetSetCount;
+          return Number.isInteger(target)&&target>0&&done.length>=target&&done.every(s=>s.quality===true&&s.targetSetCount===target&&numberIn(s.rir,3,5)&&Number(s.reps)>=Number(s.targetReps)&&Number(s.targetReps)===reps);
+        });
+        if(weight!==null&&stable&&!failedAttempt&&!['recovery','technique','deload','test','assessment'].includes(mode)&&!trials.some(t=>t===recent)){
+          if(weight>0&&increment/weight<=0.05){weight=Math.max(0,weight+(assistance?-increment:increment));source+='；连续两次达标，调整一档';}
+          else {reps=Math.min(reps+1,15);source+='；器械档位超过 5%，先增加一次';}
+        }
+        if(weight!==null&&rows.some(s=>s.rir!=null&&Number(s.rir)<=1||s.targetReps&&Number(s.reps)<Number(s.targetReps))){
+          weight=assistance?weight+increment:S.roundLoad(weight*.95,increment);sets=Math.max(1,sets-1);source+='；近期未达标，减量';
+        }
+      }else if(estimate){
+        capacity=S.trainingMax(profile,estimate);weight=S.loadForReps(capacity,reps,effort,increment);source='同主项 PB/e1RM → 保守训练基准';
       }
-      weight=S.loadForReps(capacity,reps,effort,increment);
-      if(mode==='technique'||mode==='recovery')weight=S.roundLoad(capacity*(mode==='recovery'?0.50:0.55),increment);
-      source=capacity>S.trainingMax(profile,estimate)?'同动作完成且余力充足 · 基准递增 2.5%':'PB 估算 → 保守训练基准';
-      // Recent performance limits a stale high PB; it never inflates the PB itself.
-      if(rows.length&&prior.completed===false){const last=Number(rows[0].weight);if(last>0){weight=Math.min(weight,S.roundLoad(last*0.95,increment));source='上次未完成 · 减重重建';}}
-    }else if(ex.equipment!=='自重'&&rows.length){
-      const last=rows[0];weight=Number(last.weight);source='沿用同动作最近记录';
-      const rated=rows.every(s=>s.rir!==null&&s.rir!==undefined&&Number.isFinite(Number(s.rir))&&Number(s.rir)>=0&&Number(s.rir)<=5);
-      const exceeded=rows.every(s=>Number(s.reps)>=Number(s.targetReps||reps)+1 && Number(s.rir)>=2);
-      const previousRecord=history.filter(r=>r.sets.some(s=>s.exercise===id&&s.done))[1];
-      if(rated&&exceeded&&previousRecord&&previousRecord.sets.filter(s=>s.exercise===id&&s.done).every(s=>s.rir!=null&&s.rir>=3&&s.reps>=(s.targetReps||reps))){const step=weight>0?increment/weight:1;if(step<=0.05){weight+=increment;source='连续两次同动作达到目标且余力充足 · 递增一档';}}
-      if(rated&&rows.some(s=>Number(s.rir)<=1)||rows.some(s=>s.targetReps&&Number(s.reps)<Number(s.targetReps))){weight=S.roundLoad(weight*0.95,increment);source='同动作余力不足或未达次数 · 降重';}
-      const usable=rows.find(s=>Number(s.weight)>0&&Number(s.reps)<=10&&s.rir!==undefined&&s.rir!==null);
-      if(usable)capacity=Number(usable.weight)*(1+(Number(usable.reps)+Number(usable.rir))/30);
-      if(mode==='recovery'||mode==='technique'){weight=S.roundLoad(weight*0.7,increment);source+=' · 轻量日';}
-    }else if(ex.equipment!=='自重'){
-      const [ratio,ceiling]=starters[id];const margin=profile.experience==='beginner'||Number(profile.age)>=65?0.75:1;
-      weight=S.roundLoad(Math.min(Number(profile.weight)*ratio,ceiling)*margin,increment);
-      weight=Math.max(ex.equipment==='哑铃'?0.5:Math.min(increment,ceiling),weight);calibration=true;source='首次试重 · 经验起点，需热身校准';
-      if(mode==='recovery')weight=S.roundLoad(weight*0.7,increment);
+      if(failedAttempt&&weight!==null){
+        weight=assistance?weight+increment:S.roundLoad(weight*.9,increment);sets=Math.max(1,sets-1);source+='；最近出现失败或动作失控，降量并重新确认';
+      }
+      if(weight!==null&&['recovery','technique','deload'].includes(mode)){
+        if(assistance)weight+=increment;
+        else weight=S.roundLoad(capacity?Math.min(weight,capacity*(mode==='recovery'?.5:mode==='deload'?.65:.55)):weight*(mode==='recovery'?.6:.75),increment);
+        source+='；低负荷日';
+      }
     }
-    return {...ex,sets,reps,weight:S.roundLoad(Math.max(0,weight),increment),capacity:capacity?Math.round(capacity*10)/10:null,rir:ex.unit==='秒'?null:effort,source,calibration,rest:main?mode==='intensity'?180:120:90,main};
+    const calibrationRequired=weight===null;
+    return {...ex,sets,reps,weight,capacity:capacity?Math.round(capacity*10)/10:null,rir:ex.measurement.kind==='duration'?null:effort,source,loadSource:source,calibration:calibrationRequired,calibrationRequired,machineId,increment,rest:main?mode==='intensity'?240:180:ex.isolation?90:120,main};
   }
   function validateRecord(r) {
     if(!r||typeof r.id!=='string'||!r.id||r.id.length>100||!validDate(r.date)||r.date>dateKey()||!C.lifts.some(l=>l.id===r.lift)) return '训练记录标识或日期无效。';
     if(!['volume','intensity','recovery','technique','deload','test','assessment','manual'].includes(r.mode)||typeof r.completed!=='boolean'||!numberIn(r.rpe,1,10)) return '训练类型或用力程度无效。';
     if(!Array.isArray(r.sets)||!r.sets.length||r.sets.length>100||!r.sets.some(s=>s.done)) return '至少需要一组实际完成记录。';
     for(const s of r.sets) if(!s||!C.byId(s.exercise)||typeof s.done!=='boolean'||!numberIn(s.weight,0,600)||!numberIn(s.reps,1,300)||!Number.isInteger(Number(s.reps))||s.targetReps!==undefined&&(!numberIn(s.targetReps,1,300)||!Number.isInteger(Number(s.targetReps)))) return '每组需填写有效重量和次数。';
+    if(r.sets.some(s=>s.done&&s.calibrationRequired))return '待试重不能作为实际工作组保存。';
     if(r.completed && !r.sets.some(s=>s.exercise===r.lift&&s.done)) return '完成主项后才能推进周期。';
     if(r.sets.some(s=>s.rir!==null&&s.rir!==undefined&&(!numberIn(s.rir,0,5)||!Number.isInteger(Number(s.rir)))))return '每组剩余次数需为 0–5 或留空。';
     if(r.sets.some(s=>s.capacity!==null&&s.capacity!==undefined&&!numberIn(s.capacity,0.1,1000)))return '训练基准无效。';
     if(r.completed && r.sets.some(s=>s.exercise===r.lift&&(!s.done || s.targetReps!==undefined&&Number(s.reps)<Number(s.targetReps)))) return '主项次数未达到目标，不能标记完成。';
     return null;
   }
-  function makePlan({profile,history=[],lift='squat',date=dateKey(),readiness={}}) {
-    if(!C.lifts.some(l=>l.id===lift)||!validDate(date)) throw new Error('训练项目或日期无效');
-    const fatigue=S.fatigueInfo(readiness.fatigue===undefined?2:readiness.fatigue);
-    const base={lift,date,exercises:[],warmup:[],mode:'setup',label:modes.setup,reason:validateProfile(profile),rpe:'',percent:null,fatigue};
-    if(base.reason) return base;
-    const prior=history.filter(r=>!validateRecord(r)&&r.date<=date).sort((a,b)=>b.date.localeCompare(a.date));
-    const primaryMuscles={squat:['quads','glutes'],bench:['chest','triceps'],deadlift:['hamstrings','glutes','lowerback']}[lift];
-    const related=prior.find(r=>r.lift===lift||(lift!=='bench'&&r.lift!=='bench')||r.sets.some(s=>s.done&&C.byId(s.exercise).muscles.some(m=>primaryMuscles.includes(m))));
-    const last=prior.find(r=>r.lift===lift&&r.completed);
-    const recent=prior.find(r=>r.lift===lift);
-    const pb=profile.pb[lift];
-    const fresh=pb && daysBetween(date,pb.date)>=0 && daysBetween(date,pb.date)<=180;
-    let mode='volume',reason='本轮从容量训练开始，保留余力，记录真实完成情况。';
-    if(last) {
-      mode={volume:'intensity',intensity:'recovery',recovery:'volume',technique:'volume'}[last.mode];
-      reason='根据上一次完成的同主项训练安排下一阶段，漏练不会自动推进周期。';
-    }
-    if(!fresh||profile.experience==='beginner'||Number(profile.age)>=65||(last&&daysBetween(date,last.date)>21)) {
-      mode='technique';reason=!fresh?'没有近期 PB，先用轻负荷建立动作与用力记录；不需要测试极限。':'采用技术适应模板，先确认动作与恢复，再考虑增加负荷。';
-    }
-    if(Number(readiness.fatigue)>=4||recent&&Number(recent.rpe)>=9) {
-      mode='recovery';reason='当前疲劳较高或上次接近力竭，减少负荷和组数，不安排强度训练。';
-    }
-    if(readiness.pain===true||fatigue.value===5||(related&&daysBetween(date,related.date)<2)) {
-      return {...base,mode:'rest',label:modes.rest,reason:readiness.pain?'存在疼痛或不适，今天不生成负重计划；持续或明显不适请寻求专业评估。':fatigue.value===5?'疲劳 5 档，今天休息；未来计划只能预览，不能当作今天训练许可。':'距离相关训练不足两天，今天先恢复，避免重复负荷。'};
-    }
-    // ponytail: deterministic templates, not individualized prescriptions; coach-reviewed rules before clinical or competition use.
-    const muscleGoal=profile.goal==='muscle';
-    const template={volume:[3,muscleGoal?8:5,3,'6–7'],intensity:[3,muscleGoal?6:3,2,'7–8'],recovery:[2,8,4,'≤6'],technique:[2,8,4,'5–6']}[mode];
-    const [sets,reps,rir,rpe]=template;
-    const main=prescribe(lift,profile,prior,mode,{sets,reps,rir,main:true,date});
-    const assistance={squat:['split','dbbench','row','plank'],bench:['row','goblet','lateral','pressdown'],deadlift:['goblet','dbbench','pulldown','deadbug']}[lift];
-    const count=['recovery','technique'].includes(mode)?2:4;
-    const exercises=[main,...assistance.slice(0,count).map(id=>prescribe(id,profile,prior,mode,{sets:mode==='recovery'?1:mode==='volume'&&muscleGoal?3:2,reps:id==='plank'?25:id==='deadbug'?8:muscleGoal?12:10,rir:3,date}))];
-    if(fatigue.value===3){for(const e of exercises){e.weight=S.roundLoad(e.weight*fatigue.load,e.equipment==='哑铃'?0.5:Number(profile.increment));e.sets=Math.max(1,e.sets+fatigue.sets);if(e.rir!==null)e.rir+=fatigue.rir;e.source+=' · 中等疲劳降量';}reason+=' '+fatigue.action;}
-    const estimate=fresh?S.estimatePB(pb.weight,pb.reps,profile.weight):null;
-    return {...base,mode,label:modes[mode],reason,rpe,estimate,trainingMax:main.capacity||S.trainingMax(profile,estimate),percent:estimate?Math.round(main.weight/estimate.low*100):null,exercises,warmup:['先进行 5–8 分钟轻活动与关节活动。','先以更轻重量热身；首次试重不是能力预测。器械最小负荷过重时换用更轻器械。'],estimatedMinutes:mode==='recovery'?25:mode==='technique'?30:55,scienceNote:'重量与次数为可调整起点。每组保留目标余力，记录实际完成与 RIR，再校准下一次。'};
+  function makePlan({profile,history=[],lift='squat',date=dateKey(),readiness={},mode}){
+    if(!C.lifts.some(l=>l.id===lift)||!validDate(date))throw Error('训练项目或日期无效');
+    const reason=validateProfile(profile),fatigue=S.fatigueInfo(readiness.fatigue??2);
+    if(reason)return {lift,date,mode:'setup',label:modes.setup,reason,exercises:[],warmup:[],fatigue,canStart:false,previewOnly:date!==dateKey()};
+    const K=typeof module!=='undefined'?require('./coach'):globalThis.MuscleCoach;
+    return K.prescription({profile,history,calibrations:[],feedback:[],events:[],settings:{maxTesting:false}},lift,date,{...readiness,fatigue:fatigue.value},{mode});
   }
   function planView(args){
     const today=makePlan(args);
-    if(today.mode!=='rest')return {...today,canStart:today.exercises.length>0,previewOnly:false,blockedReason:''};
+    if(today.mode!=='rest')return {...today,blockedReason:''};
     for(let i=1;i<=21;i++){
       const d=new Date(today.date+'T12:00:00');d.setDate(d.getDate()+i);
       if(!args.profile.days.includes(d.getDay()))continue;
@@ -144,9 +132,9 @@
   function createSession(plan) {
     if(plan.previewOnly)throw new Error('未来计划仅供预览，请在训练当天重新评估。');
     if(!plan.exercises.length) throw new Error('当前没有可开始的训练');
-    if(plan.exercises.some(e=>!C.byId(e.id)||!numberIn(e.sets,1,8)||!Number.isInteger(Number(e.sets))||!numberIn(e.reps,1,300)||!Number.isInteger(Number(e.reps))||!numberIn(e.weight,0,600)))throw new Error('请填写有效重量、1–8 组和有效次数，再开始训练。');
-    return {id:Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8),date:plan.date,lift:plan.lift,mode:plan.mode,completed:false,rpe:7,sets:plan.exercises.flatMap(e=>Array.from({length:e.sets},(_,i)=>({key:e.id+'-'+i,exercise:e.id,name:e.name,unit:e.unit,weightUnit:e.weightUnit,index:i+1,weight:e.weight===null?'':e.weight,reps:e.reps,targetReps:e.reps,capacity:e.capacity||null,targetRir:e.rir,rir:null,source:e.source||'',done:false,rest:e.rest}))),deadline:0};
+    if(plan.exercises.some(e=>!C.byId(e.id)||!numberIn(e.sets,1,8)||!Number.isInteger(Number(e.sets))||!numberIn(e.reps,1,300)||!Number.isInteger(Number(e.reps))||!(e.calibrationRequired&&e.weight===null)&&!numberIn(e.weight,0,600)))throw new Error('请填写有效重量、1–8 组和有效次数，再开始训练。');
+    return {id:Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8),date:plan.date,lift:plan.lift,mode:plan.mode,completed:false,rpe:7,sets:plan.exercises.flatMap(e=>Array.from({length:e.sets},(_,i)=>({key:e.id+'-'+i,exercise:e.id,name:e.name,unit:e.unit,weightUnit:e.weightUnit,loadConvention:e.loadConvention,machineId:e.machineId,measurement:e.measurement,calibrationRequired:!!e.calibrationRequired,selectionReason:e.selectionReason,doseReason:e.doseReason,loadSource:e.loadSource,index:i+1,weight:e.weight===null?'':e.weight,targetWeight:e.weight,targetSetCount:e.sets,reps:e.reps,targetReps:e.reps,capacity:e.capacity||null,targetRir:e.rir,rir:null,source:e.source||'',done:false,rest:e.rest}))),deadline:0};
   }
-  const api={modes,dateKey,validDate,daysBetween,validateProfile,estimateMax,validateRecord,makePlan,planView,upcoming,createSession,prescribe};
+  const api={modes,dateKey,validDate,daysBetween,validateProfile,estimateMax,validateRecord,makePlan,planView,upcoming,createSession,prescribe,compatibleLoad};
   if(typeof module!=='undefined')module.exports=api;else globalThis.MusclePlanner=api;
 })();

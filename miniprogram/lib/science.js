@@ -38,13 +38,14 @@
   function reviseSet(row,field,value) {
     const updated={...row,[field]:value,done:false};
     if(row.index!==undefined)updated.rir=null;
-    if(field==='weight'&&row.unit!=='秒') {
+    if(field==='weight'&&row.unit!=='秒'&&row.loadConvention!=='assistance'&&row.loadConvention!=='bodyweight') {
       const reserve=row.targetRir===undefined?2:row.targetRir;
       const reps=row.capacity?repsAtLoad(value,row.capacity,reserve):null;
       updated.advice=!row.capacity?'尚无可靠的同动作能力基准，无法科学推算次数。请填写试重后的可控次数；不能把加重直接换成固定少做两次。':reps===null?'该重量无法在当前模型下保留目标余力。请减重，或明确填写经过试重确认的次数。':'根据同动作训练基准 '+row.capacity+' kg、保留 '+reserve+' 次余力反算；这不是精确能力保证。';
       updated.reps=reps===null?'':reps;
       if(reps!==null&&row.index===undefined)updated.targetReps=reps;
     }
+    if(field==='weight'&&row.loadConvention==='assistance'){updated.reps='';updated.advice='助力越大越容易，不能用普通加重公式换算次数；请实际试做确认。';}
     if(field==='reps'&&valid(value,1,300))updated.advice='已手动修改次数；按实际能力完成，不必勉强达到目标。';
     return updated;
   }
