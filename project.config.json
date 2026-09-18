@@ -5,5 +5,5 @@
   "appid": "touristappid",
   "projectname": "three-lift",
   "setting": {"es6":true,"enhance":true,"minified":true,"urlCheck":true},
-  "packOptions": {"ignore":[],"include":[]}
+  "packOptions": {"ignore":[{"type":"file","value":"assets/equipment.png"}],"include":[]}
 }

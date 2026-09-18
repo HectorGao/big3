@@ -1,0 +1,2 @@
+.teaching-frame{position:relative;width:600rpx;height:750rpx;max-width:100%;overflow:hidden;background:#fff;margin:24rpx auto}.teaching-frame image{position:absolute;display:block;max-width:none}.row button{width:auto;padding:0 20rpx}.step{padding:20rpx 0}
+.teaching-crop{position:absolute;overflow:hidden}

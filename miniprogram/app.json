@@ -8,6 +8,13 @@
     {"pagePath":"pages/history/history","text":"训练记录"},
     {"pagePath":"pages/profile/profile","text":"我的"}
   ]},
+  "subPackages":[
+    {"root":"media-squat","pages":["detail"]},
+    {"root":"media-hinge","pages":["detail"]},
+    {"root":"media-push","pages":["detail"]},
+    {"root":"media-pull","pages":["detail"]},
+    {"root":"media-core","pages":["detail"]}
+  ],
   "style":"v2",
   "sitemapLocation":"sitemap.json"
 }
