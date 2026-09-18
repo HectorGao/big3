@@ -1,0 +1,57 @@
+const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs');
+const P=require('../miniprogram/lib/planner'),Store=require('../miniprogram/lib/store');
+const url=process.env.PREVIEW_URL||'http://127.0.0.1:4173';
+(async()=>{
+ const browser=await chromium.launch({headless:true,channel:process.env.BROWSER_CHANNEL||'chrome'});
+ fs.mkdirSync('playwright-report',{recursive:true});
+ try{
+ for(const width of [1280,390]){
+  const page=await browser.newPage({viewport:{width,height:900},deviceScaleFactor:1}),errors=[];
+  page.on('pageerror',e=>errors.push(e.message));
+  await page.goto(url+'/preview/index.html?qa=rebuild-'+width+'#today');
+  await page.waitForLoadState('networkidle');
+  const fixture={...Store.empty(),profile:{age:30,weight:75,experience:'trained',goal:'strength',days:[1,3,5],increment:2.5,pb:{squat:{weight:120,reps:1,date:P.dateKey()},bench:{weight:90,reps:1,date:P.dateKey()},deadlift:{weight:150,reps:1,date:P.dateKey()}}}};
+  await page.evaluate(({fixture,width})=>localStorage.setItem('three-lift-v1-qa-rebuild-'+width,JSON.stringify(fixture)),{fixture,width});
+  await page.reload();await page.waitForLoadState('networkidle');
+  await page.locator('[data-action="lift"][data-lift="deadlift"]').click();
+  await page.locator('#free-mode').selectOption('recovery');
+  const recovery=await page.locator('[data-plan="deadlift"][data-field="weight"]').inputValue();
+  await page.locator('#free-mode').selectOption('intensity');
+  const intensity=await page.locator('[data-plan="deadlift"][data-field="weight"]').inputValue();
+  assert.ok(Number(intensity)>Number(recovery));
+  assert.equal(await page.locator('[data-plan="deadlift"][data-field="reps"]').inputValue(),'3');
+  assert.equal(await page.locator('[data-plan="row"][data-field="weight"]').inputValue(),'');
+  assert.match(await page.locator('.prescription-reasons').nth(1).textContent(),/屈膝/);
+  await page.screenshot({path:'playwright-report/plan-'+width+'.png',fullPage:true});
+  await page.locator('[data-action="start"]').click();
+  assert.equal(await page.locator('.set-head span').nth(2).textContent(),'次数');
+  assert.equal(await page.locator('#free-mode').isDisabled(),true);
+  await page.locator('[data-action="calibrate"][data-id="row"]').first().click();
+  await page.locator('#calibration-form [name="weight"]').fill('26');
+  await page.locator('#calibration-form [name="quality"]').check();
+  await page.locator('#calibration-form button[type="submit"]').click();
+  const rowWeight=await page.locator('[data-field="weight"][aria-label*="胸托"]').first().inputValue();
+  assert.equal(rowWeight,'26');
+  await page.screenshot({path:'playwright-report/session-'+width+'.png',fullPage:true});
+  await page.locator('.session-layout [data-action="detail"][data-id="row"]').first().click();
+  await page.locator('#teaching-image').waitFor({state:'visible'});
+  await page.waitForFunction(()=>document.querySelector('#teaching-image').naturalWidth>0);
+  await page.locator('[data-action="figure-next"]').click();
+  assert.match(await page.locator('#phase-label').textContent(),/2 \/ 3/);
+  await page.screenshot({path:'playwright-report/figure-'+width+'.png'});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  await page.locator('[data-action="figure-zoom"]').click();
+  assert.equal(await page.locator('.teaching-frame.zoomed').count(),1);
+  await page.locator('[data-action="close"]').click();
+  page.on('dialog',d=>d.accept());
+  await page.locator('[data-action="discard"]').click();
+  await page.locator('#today-date').fill(new Date(Date.now()+86400000).toLocaleDateString('en-CA'));
+  await page.locator('#today-date').dispatchEvent('change');
+  assert.equal(await page.locator('[data-action="start"]').isDisabled(),true);
+  assert.ok((await page.locator('#today-badge').textContent()).includes(P.dateKey()));
+  assert.deepEqual(errors,[]);
+  console.log('PASS '+width+'px: mode, calibration, frozen session, units, phases, zoom, future date, overflow');
+  await page.close();
+ }
+ }finally{await browser.close();}
+})().catch(e=>{console.error(e);process.exitCode=1;});

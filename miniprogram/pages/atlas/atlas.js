@@ -8,6 +8,6 @@ Page({
  side(e){const side=e.currentTarget.dataset.side;const selected=C.muscles.find(m=>m.id===this.data.muscle);if(selected.side!==side)this.pick({detail:{id:side==='back'?'upperback':'chest'}});else this.setData({side});},
  equipment(e){this.setData({equipmentIndex:Number(e.detail.value)});this.filter();},
  search(e){this.setData({query:e.detail.value});this.filter();},
- showDetail(e){this.setData({detail:C.byId(e.currentTarget.dataset.id)});},closeDetail(){this.setData({detail:null});},noop(){},
+ showDetail(e){const ex=C.byId(e.currentTarget.dataset.id);wx.navigateTo({url:'/media-'+ex.group+'/detail?id='+ex.id});},closeDetail(){this.setData({detail:null});},noop(){},
  train(){const muscle=C.muscles.find(m=>m.id===this.data.muscle);getApp().globalData.selectedLift=muscle.lift;wx.switchTab({url:'/pages/today/today'});}
 });

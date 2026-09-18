@@ -4,7 +4,12 @@
   "private": true,
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "preview": "node preview/server.js"
+    "preview": "node preview/server.js",
+    "build:media": "node scripts/build-media.js",
+    "check:packages": "node scripts/check-packages.js",
+    "check:release-media": "node scripts/check-packages.js --complete",
+    "test:browser": "node scripts/browser-check.js",
+    "test:media-browser": "node scripts/media-browser-check.js"
   },
   "devDependencies": {
     "lucide": "^1.43.0"

@@ -2,3 +2,7 @@
 .lift-picker{background:transparent;padding:0;gap:14rpx}.lift-picker button{padding:0;border:1rpx solid #e0e5df;background:#fff;overflow:hidden}.lift-picker button.active{border-color:#d94a48}.lift-photo{position:relative;height:120rpx;overflow:hidden}.lift-photo image{position:absolute;width:300%;top:0}.lift-label{padding:16rpx 8rpx}.overview-map{transform:none}
 .plan-inputs{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:14rpx;margin-top:24rpx}.plan-inputs input{width:100%;padding:0 14rpx}.set-advice{grid-column:1 / -1}.rir-choice{padding:14rpx 18rpx;background:#eef3e8;font-size:24rpx}
 .fatigue-summary{background:#eef3e8;padding:22rpx;margin:16rpx 0;border-left:4rpx solid #648359;line-height:1.8;font-size:25rpx}
+.today-mark{color:#c43d46;font-weight:700}
+.date-controls{display:flex;flex-wrap:wrap;gap:16rpx;align-items:center;margin:24rpx 0}
+.date-controls picker{padding:16rpx;background:#fff;border:1rpx solid #d5d9d5}
+.set-row input{min-width:0;width:100%}
