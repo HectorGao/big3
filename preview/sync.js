@@ -5,7 +5,7 @@
  const namespace=()=>user?'-account-'+user.id:'';
  const rawKey=()=>key+namespace(),metaKey=()=>rawKey()+'-sync';
  const emit=()=>window.dispatchEvent(new CustomEvent('sync-status',{detail:{user,status,conflict}}));
- async function api(route,method='GET',body){const r=await fetch('/api/'+route,{method,credentials:'same-origin',headers:{...(body?{'Content-Type':'application/json'}:{}),...(user?{'X-Big3-Account':user.id}:{}),...(debugToken?{'X-Big3-Debug':debugToken}:{})},signal:AbortSignal.timeout(15000),body:body?JSON.stringify(body):undefined});let d;try{d=await r.json();}catch{throw Error('账号服务未启动，请使用本地服务器打开');}if(!r.ok){const e=Error(d.error||'请求失败');e.status=r.status;throw e;}return d;}
+ async function api(route,method='GET',body){const r=await fetch('/api/'+route,{method,credentials:'same-origin',headers:{...(body?{'Content-Type':'application/json'}:{}),...(user?{'X-Big3-Account':user.id}:{}),...(debugToken?{'X-Big3-Debug':debugToken}:{})},signal:AbortSignal.timeout(15000),body:body?JSON.stringify(body):undefined});let d;try{d=await r.json();}catch{throw Error('当前无法连接在线账号服务，登录、跨设备同步和留言板暂不可用。你可以继续使用本机训练功能，已有记录仍保存在当前浏览器。');}if(!r.ok){const e=Error(d.error||'请求失败');e.status=r.status;throw e;}return d;}
  function remember(){localStorage.setItem(metaKey(),JSON.stringify({revision,base}));}
  const current=()=>localStorage.getItem(rawKey())||JSON.stringify(MuscleStore.empty());
  async function flush(allowConnecting=false){
