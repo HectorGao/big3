@@ -7,6 +7,8 @@
 <view class="section"><view class="section-title">三大项 PB</view><view class="muted">填重量、完成次数和日期。1 次为实测单次 PB，2–10 次用于估算，不要求测试极限。</view>
 <view wx:for="{{pbRows}}" wx:key="id" class="pb-block">
   <view class="row"><text class="exercise-name">{{item.name}}</text><text class="eyebrow">{{item.en}}</text></view>
+  <view wx:if="{{item.automatic}}" class="notice">单次最佳已由训练记录自动更新，是实际完成重量，不代表已测试极限。</view>
+  <view wx:if="{{item.autoEstimate}}" class="notice">训练估算最佳 {{item.autoEstimate.range}} kg。来源：{{item.best.weight}} kg × {{item.best.reps}} 次，余力 {{item.best.rir}} 次 · {{item.best.date}}。估算不覆盖实测单次。</view>
   <view class="grid2"><view class="field"><text class="label">总重量 / kg</text><input type="digit" placeholder="可留空" value="{{item.weight}}" data-index="{{index}}" data-field="weight" bindinput="pb" aria-label="{{item.name}}PB重量"/></view><view class="field"><text class="label">完成次数</text><input type="number" value="{{item.reps}}" data-index="{{index}}" data-field="reps" bindinput="pb" aria-label="{{item.name}}PB次数"/></view></view>
   <picker mode="date" value="{{item.date}}" end="{{today}}" data-index="{{index}}" data-field="date" bindchange="pb"><view class="picker-value">记录日期 <text>{{item.date}} ↓</text></view></picker>
   <view wx:if="{{item.estimate}}" class="estimate-panel"><view class="muted">{{item.estimate.measured?'实测单次 PB':'估算单次 PB / e1RM'}}</view><view class="metric">{{item.estimate.range}} <text class="unit">kg</text></view><view class="muted">Epley {{item.estimate.epley}} · Brzycki {{item.estimate.brzycki}}</view><view class="muted">保守训练基准 {{item.trainingMax}} kg <text wx:if="{{item.estimate.relative}}">· {{item.estimate.relative}} 倍体重</text></view><view class="muted">需使用接近极限且动作合格的记录；范围为公式差异，不是置信区间。</view></view>
@@ -15,4 +17,4 @@
 <button class="link space" bindtap="science">计算依据与适用范围</button>
 <view class="notice">年龄和体重不会直接换算安全重量。65 岁及以上默认使用技术适应模板；如有伤病或其他健康限制，请先接受专业评估。</view><button class="primary" bindtap="save">{{saved?'资料已保存':'保存训练档案'}}</button>
 <view class="section"><view class="section-title">数据与隐私</view><view class="muted">不采集姓名、手机号和位置，不上传训练数据。清理微信存储或换机会丢失本地记录，请定期导出备份。</view><view class="row space"><button class="small grow" bindtap="export">导出备份</button><button class="small grow" bindtap="backupPanel">恢复备份</button></view><view wx:if="{{showBackup}}" class="space"><textarea value="{{backup}}" bindinput="backupInput" maxlength="5000000" placeholder="粘贴 JSON 备份" aria-label="备份内容"/><view class="row space"><button class="small grow" bindtap="copy">复制到剪贴板</button><button class="small grow" bindtap="import">验证并恢复</button></view></view></view>
-<view class="footer-note">三项训练 v0.1.0 · 本地版<br/>训练规则为一般健身模板，未经过个体临床验证。动作与图示用于辅助理解，不代替现场技术指导。</view></view>
+<view class="footer-note">{{release.name}} v{{release.version}} · {{release.build}} · 本地版<br/>训练规则为一般健身模板，未经过个体临床验证。动作与图示用于辅助理解，不代替现场技术指导。</view></view>

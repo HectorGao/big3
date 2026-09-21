@@ -35,11 +35,11 @@
     const t=s.split(/\s+/);let i=0;const x=n=>mirror?320-Number(n):Number(n);
     ctx.beginPath();while(i<t.length){const c=t[i++];if(c==='M'||c==='L')ctx[c==='M'?'moveTo':'lineTo'](x(t[i++]),Number(t[i++]));else if(c==='Q')ctx.quadraticCurveTo(x(t[i++]),Number(t[i++]),x(t[i++]),Number(t[i++]));else if(c==='Z')ctx.closePath();}
   }
-  function draw(ctx,width,height,side='front',selected=[]){
+  function draw(ctx,width,height,side='front',selected=[],heat={}){
     ctx.clearRect(0,0,width,height);ctx.save();const scale=Math.min(width/320,height/620);ctx.translate((width-320*scale)/2,(height-620*scale)/2);ctx.scale(scale,scale);
     ctx.lineWidth=1.35;ctx.lineJoin='round';ctx.strokeStyle='#51506f';ctx.fillStyle='#f8f8fa';
     contours[side].forEach((s,i)=>{path(ctx,s);if(i===1)ctx.fill();ctx.stroke();if(i===0){path(ctx,s,true);ctx.stroke();}});
-    for(const [id,s,mirror] of side==='back'?back:front)for(const m of mirror?[false,true]:[false]){path(ctx,s,m);ctx.fillStyle=selected.includes(id)?'#f64f86':'#ebebed';ctx.fill();ctx.stroke();}
+    for(const [id,s,mirror] of side==='back'?back:front)for(const m of mirror?[false,true]:[false]){path(ctx,s,m);ctx.fillStyle=heat[id]>0?['#fbdde7','#f6b3ca','#ee7aa7','#d9407b'][Math.min(3,Math.floor((heat[id]-1)/3))]:selected.includes(id)?'#f64f86':'#ebebed';ctx.fill();ctx.stroke();}
     ctx.strokeStyle='#51506f';ctx.lineWidth=1.2;
     if(side==='front'){
       path(ctx,'M 140 53 L 141 40 Q 159 47 178 38 L 181 54 M 142 108 Q 152 110 160 119 Q 168 110 178 108 M 160 165 L 160 262 M 123 241 Q 144 260 160 283 Q 176 260 197 241');ctx.stroke();

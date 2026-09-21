@@ -61,7 +61,13 @@
           capacity=Number(recent.weight)*(1+(Number(recent.reps)+Number(recent.rir))/30);
           if(!sameReps&&reps+effort<=12&&reps<=10){weight=S.loadForReps(capacity,reps,effort,increment);source='同动作实际组与余力估算；热身后确认';}
         }
-        if(!sameReps&&weight===null)source='目标次数变化，原记录不足以可靠换算；需重新试重';
+        // Missing RIR in a recent set must not hide a valid, same-lift PB.
+        if(!sameReps&&weight===null){
+          if(estimate&&reps<=10&&reps+effort<=15){
+            capacity=S.trainingMax(profile,estimate);weight=S.loadForReps(capacity,reps,effort,increment);
+            source='近期同动作组缺少可靠的次数换算依据；采用 '+pb.date+' 同主项 PB/e1RM 的保守训练基准，热身后确认';
+          }else source='目标次数变化，原记录不足以可靠换算；需重新试重';
+        }
         const stable=prior.length>=2&&prior.slice(0,2).every(r=>{
           const done=eligibleRows(r),target=done[0]?.targetSetCount;
           return Number.isInteger(target)&&target>0&&done.length>=target&&done.every(s=>s.quality===true&&s.targetSetCount===target&&numberIn(s.rir,3,5)&&Number(s.reps)>=Number(s.targetReps)&&Number(s.targetReps)===reps);
@@ -94,6 +100,7 @@
     if(!Array.isArray(r.sets)||!r.sets.length||r.sets.length>100||!r.sets.some(s=>s.done)) return '至少需要一组实际完成记录。';
     for(const s of r.sets) if(!s||!C.byId(s.exercise)||typeof s.done!=='boolean'||!numberIn(s.weight,0,600)||!numberIn(s.reps,1,300)||!Number.isInteger(Number(s.reps))||s.targetReps!==undefined&&(!numberIn(s.targetReps,1,300)||!Number.isInteger(Number(s.targetReps)))) return '每组需填写有效重量和次数。';
     if(r.sets.some(s=>s.done&&s.calibrationRequired))return '待试重不能作为实际工作组保存。';
+    if(r.sets.some(s=>s.done&&s.skipped))return '放弃的组不能计入已完成训练。';
     if(r.completed && !r.sets.some(s=>s.exercise===r.lift&&s.done)) return '完成主项后才能推进周期。';
     if(r.sets.some(s=>s.rir!==null&&s.rir!==undefined&&(!numberIn(s.rir,0,5)||!Number.isInteger(Number(s.rir)))))return '每组剩余次数需为 0–5 或留空。';
     if(r.sets.some(s=>s.capacity!==null&&s.capacity!==undefined&&!numberIn(s.capacity,0.1,1000)))return '训练基准无效。';
@@ -133,7 +140,7 @@
     if(plan.previewOnly)throw new Error('未来计划仅供预览，请在训练当天重新评估。');
     if(!plan.exercises.length) throw new Error('当前没有可开始的训练');
     if(plan.exercises.some(e=>!C.byId(e.id)||!numberIn(e.sets,1,8)||!Number.isInteger(Number(e.sets))||!numberIn(e.reps,1,300)||!Number.isInteger(Number(e.reps))||!(e.calibrationRequired&&e.weight===null)&&!numberIn(e.weight,0,600)))throw new Error('请填写有效重量、1–8 组和有效次数，再开始训练。');
-    return {id:Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8),date:plan.date,lift:plan.lift,mode:plan.mode,completed:false,rpe:7,sets:plan.exercises.flatMap(e=>Array.from({length:e.sets},(_,i)=>({key:e.id+'-'+i,exercise:e.id,name:e.name,unit:e.unit,weightUnit:e.weightUnit,loadConvention:e.loadConvention,machineId:e.machineId,measurement:e.measurement,calibrationRequired:!!e.calibrationRequired,selectionReason:e.selectionReason,doseReason:e.doseReason,loadSource:e.loadSource,index:i+1,weight:e.weight===null?'':e.weight,targetWeight:e.weight,targetSetCount:e.sets,reps:e.reps,targetReps:e.reps,capacity:e.capacity||null,targetRir:e.rir,rir:null,source:e.source||'',done:false,rest:e.rest}))),deadline:0};
+    return {id:Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8),date:plan.date,lift:plan.lift,mode:plan.mode,researchContext:plan.researchContext?JSON.parse(JSON.stringify(plan.researchContext)):null,completed:false,rpe:7,sets:plan.exercises.flatMap(e=>Array.from({length:e.sets},(_,i)=>({key:e.id+'-'+i,exercise:e.id,name:e.name,unit:e.unit,weightUnit:e.weightUnit,loadConvention:e.loadConvention,machineId:e.machineId,measurement:e.measurement,calibrationRequired:!!e.calibrationRequired,selectionReason:e.selectionReason,doseReason:e.doseReason,loadSource:e.loadSource,index:i+1,weight:e.weight===null?'':e.weight,targetWeight:e.weight,targetSetCount:e.sets,reps:e.reps,targetReps:e.reps,capacity:e.capacity||null,targetRir:e.rir,rir:null,source:e.source||'',done:false,rest:e.rest}))),deadline:0};
   }
   const api={modes,dateKey,validDate,daysBetween,validateProfile,estimateMax,validateRecord,makePlan,planView,upcoming,createSession,prescribe,compatibleLoad};
   if(typeof module!=='undefined')module.exports=api;else globalThis.MusclePlanner=api;

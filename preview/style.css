@@ -35,3 +35,9 @@
 .equipment-settings{border:0;border-top:1px solid #d5d9d5;margin:20px 0;padding:12px 0;display:flex;flex-wrap:wrap;gap:16px}
 .equipment-settings label{display:inline-flex;align-items:center;gap:6px}
 .equipment-settings input{width:16px;min-height:16px}
+.training-equipment{margin:0 0 24px;padding:12px 0;display:flex;flex-wrap:wrap;gap:12px 20px;border:0;border-bottom:1px solid #dce3dc;min-width:0}
+.training-equipment legend{font-weight:600;margin-bottom:8px}
+.training-equipment label{display:inline-flex;align-items:center;gap:8px;min-height:40px;cursor:pointer}
+.training-equipment input{width:18px;height:18px;accent-color:#52765b}
+.training-equipment p{flex-basis:100%;margin:0}
+@media(max-width:600px){.form-actions>button{flex:0 0 auto;max-width:100%}.form-actions>.text-muted{flex:1 1 180px;min-width:0}}

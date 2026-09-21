@@ -1,9 +1,9 @@
 {
-  "description": "三项训练 - 原生微信小程序",
+  "description": "举个铁子 - 原生微信小程序",
   "miniprogramRoot": "miniprogram/",
   "compileType": "miniprogram",
   "appid": "touristappid",
-  "projectname": "three-lift",
+  "projectname": "jugetiezi",
   "setting": {"es6":true,"enhance":true,"minified":true,"urlCheck":true},
   "packOptions": {"ignore":[{"type":"file","value":"assets/equipment.png"}],"include":[]}
 }

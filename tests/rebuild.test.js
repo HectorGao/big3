@@ -3,7 +3,7 @@ const C=require('../miniprogram/lib/catalog'),P=require('../miniprogram/lib/plan
 const today=P.dateKey(),date=n=>K.add(today,n);
 const profile={age:30,weight:75,experience:'trained',goal:'strength',days:[1,3,5],increment:2.5,pb:Object.fromEntries(C.lifts.map(l=>[l.id,{weight:l.id==='bench'?90:150,reps:1,date:date(-7)}]))};
 const base=()=>({...S.empty(),profile:structuredClone(profile)});
-const feedback={fatigue:2,pain:false,soreness:{}};
+const feedback={fatigue:1,pain:false,soreness:{}};
 function record(id,exercise,weight,reps=10,extra={}){return {id,date:date(-4),lift:'deadlift',mode:'intensity',completed:false,rpe:7,sets:[{exercise,weight,reps,targetReps:reps,targetSetCount:1,rir:3,done:true,quality:true,success:true,loadConvention:C.byId(exercise).loadConvention,machineId:'default',...extra}]};}
 function memoryStore(){const memory={};let fail=false;return {memory,fail:()=>{fail=true;},store:S.createStore({getStorageSync:k=>memory[k],setStorageSync:(k,v)=>{if(fail)throw Error('quota');memory[k]=v;}})};}
 for(const lift of C.lifts)for(const goal of ['strength','muscle'])for(const mode of ['volume','intensity','technique','recovery','deload','test']){
@@ -89,7 +89,7 @@ test('equipment constraints, fatigue explanation, and frozen feedback are explic
  assert.deepEqual(s.readiness,sore);
  const tired=K.prescription(d,'bench',today,{...feedback,fatigue:4},{mode:'intensity'});
  assert.ok(tired.adjustments.some(a=>a.includes('疲劳为 4 档')));
- d.profile.equipment=['哑铃'];assert.equal(K.prescription(d,'bench',today,feedback).canStart,false);
+ d.profile.equipment=['哑铃'];const related=K.prescription(d,'bench',today,feedback);assert.equal(related.canStart,true);assert.equal(related.primaryExerciseId,'dbbench');assert.equal(related.exercises[0].weight,null);
 });
 test('duplicate source sessions cannot unlock progression',()=>{
  const r=record('same','row',25);assert.equal(P.prescribe('row',profile,[r,r],'volume').weight,25);
@@ -124,9 +124,9 @@ test('legacy planView preserves future preview guard',()=>{
  const p=P.planView({profile,history:[],lift:'bench',date:date(2),mode:'volume',readiness:feedback});
  assert.equal(p.previewOnly,true);assert.equal(p.canStart,false);assert.throws(()=>P.createSession(p));
 });
-test('all 50 teaching sets have reviewed, loadable stage manifests and source notes',()=>{
+test('all 52 teaching sets have reviewed, loadable stage manifests and source notes',()=>{
  const fs=require('node:fs'),path=require('node:path'),M=require('../miniprogram/lib/media-manifest');
- assert.equal(C.exercises.length,50);let stages=0;
+ assert.equal(C.exercises.length,52);let stages=0;
  for(const e of C.exercises){
   const m=M[e.id],source=require('../docs/media-sources/'+e.id+'.json');
   assert.equal(m.status,'reviewed');assert.equal(source.status,'reviewed');assert.ok(source.reviewNotes);
@@ -134,7 +134,7 @@ test('all 50 teaching sets have reviewed, loadable stage manifests and source no
   assert.ok(fs.statSync(path.join(__dirname,'../miniprogram',m.path)).size>1000);
   for(const frame of m.frames)assert.ok(Object.values(frame).every(Number.isFinite));
  }
- assert.equal(stages,147);
+ assert.equal(stages,153);
 });
 test('unknown/legacy machine units and different variants cannot borrow capability',()=>{
  const history=[record('x','row',25),record('y','curl-leg',45,12,{machineId:'gym-A'})];

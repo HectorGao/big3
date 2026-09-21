@@ -825,6 +825,82 @@
     ],
     "path": "/media-core/assets/deadbug.jpg"
   },
+  "machine-press": {
+    "status": "reviewed",
+    "reviewNotes": "三阶段坐姿器械推胸，背部贴靠、双脚着地，双手握住胸部高度的独立把手，向前推至近伸直；器械连杆和配重随阶段变化。具体座高需按器械调整。",
+    "phases": 3,
+    "frames": [
+      {
+        "width": 300,
+        "height": 100,
+        "left": 0,
+        "top": 0,
+        "viewportWidth": 100,
+        "viewportHeight": 80,
+        "viewportLeft": 0,
+        "viewportTop": 10
+      },
+      {
+        "width": 300,
+        "height": 100,
+        "left": -100,
+        "top": 0,
+        "viewportWidth": 100,
+        "viewportHeight": 80,
+        "viewportLeft": 0,
+        "viewportTop": 10
+      },
+      {
+        "width": 299.99999999999994,
+        "height": 100,
+        "left": -199.99999999999997,
+        "top": 0,
+        "viewportWidth": 100,
+        "viewportHeight": 80,
+        "viewportLeft": 0,
+        "viewportTop": 10
+      }
+    ],
+    "path": "/media-push/assets/machine-press.jpg"
+  },
+  "weighted-bridge": {
+    "status": "reviewed",
+    "reviewNotes": "三阶段地面负重臀桥，肩头接地、足底支撑、护垫横杠随骨盆上升；区别于凳上臀推。抬髋幅度以躯干稳定为准。",
+    "phases": 3,
+    "frames": [
+      {
+        "width": 300,
+        "height": 100,
+        "left": 0,
+        "top": 0,
+        "viewportWidth": 100,
+        "viewportHeight": 80,
+        "viewportLeft": 0,
+        "viewportTop": 10
+      },
+      {
+        "width": 300,
+        "height": 100,
+        "left": -100,
+        "top": 0,
+        "viewportWidth": 100,
+        "viewportHeight": 80,
+        "viewportLeft": 0,
+        "viewportTop": 10
+      },
+      {
+        "width": 299.99999999999994,
+        "height": 100,
+        "left": -199.99999999999997,
+        "top": 0,
+        "viewportWidth": 100,
+        "viewportHeight": 80,
+        "viewportLeft": 0,
+        "viewportTop": 10
+      }
+    ],
+    "path": "/media-hinge/assets/weighted-bridge.jpg"
+  },
   "front-squat": {
     "status": "reviewed",
     "reviewNotes": "交叉臂前架托杠清楚，杠铃在前三角肌、足底着地；重绘留白后完整杠铃在各阶段内。",

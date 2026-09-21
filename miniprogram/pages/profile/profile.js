@@ -1,13 +1,14 @@
 const C=require('../../lib/catalog');
+const Release=require('../../lib/release');
 const P=require('../../lib/planner');
 const S=require('../../lib/science');
 const weekdays=['日','一','二','三','四','五','六'];
 Page({
- data:{equipmentTypes:C.equipment.slice(1),equipmentRows:[],profile:{age:'',weight:'',experience:'beginner',goal:'strength',days:[1,3,5],increment:2.5,pb:{}},pbRows:[],days:[],increments:[0.5,1,1.25,2.5,5],incrementIndex:3,error:'',backup:'',showBackup:false,today:P.dateKey(),saved:false},
+ data:{release:Release,equipmentTypes:C.equipment.slice(1),equipmentRows:[],profile:{age:'',weight:'',experience:'beginner',goal:'strength',days:[1,3,5],increment:2.5,pb:{}},pbRows:[],days:[],increments:[0.5,1,1.25,2.5,5],incrementIndex:3,error:'',backup:'',showBackup:false,today:P.dateKey(),saved:false},
  onShow(){try{const d=getApp().store.load();const profile=d.profile||this.data.profile;this.setData({profile,pbRows:C.lifts.map(l=>({...l,weight:profile.pb[l.id]?.weight||'',reps:profile.pb[l.id]?.reps||1,date:profile.pb[l.id]?.date||P.dateKey()})),incrementIndex:this.data.increments.indexOf(Number(profile.increment)),error:''});this.setData({equipmentRows:C.equipment.slice(1).map(name=>({name,selected:!profile.equipment||profile.equipment.includes(name)}))});this.days();}catch(e){this.setData({error:e.message});}},
  equipment(e){this.setData({'profile.equipment':e.detail.value,saved:false});},
  days(){this.setData({days:weekdays.map((name,id)=>({id,name,selected:this.data.profile.days.includes(id)}))});this.estimates();},
- estimates(){this.setData({pbRows:this.data.pbRows.map(r=>{const estimate=S.estimatePB(r.weight,r.reps,this.data.profile.weight);return {...r,estimate,trainingMax:S.trainingMax(this.data.profile,estimate)};})});},
+ estimates(){this.setData({pbRows:this.data.pbRows.map(r=>{const estimate=S.estimatePB(r.weight,r.reps,this.data.profile.weight),best=this.data.profile.estimatedPB?.[r.id];return {...r,estimate,trainingMax:S.trainingMax(this.data.profile,estimate),automatic:this.data.profile.pb[r.id]?.source==='training-single',best,autoEstimate:best?S.estimatePB(best.weight,best.reps):null};})});},
  science(){wx.showModal({title:'计算依据',content:'1RM：Epley 与 Brzycki，适用 1–10 次接近极限记录。两公式差异不是置信区间。训练基准取低值的 90%，新手或 65 岁以上取 85%，是保守默认值，不是年龄回归模型。体重不对 PB 加成。辅助动作先试重，再用同动作记录校准。参考 ACSM 2009/2026、Schoenfeld 2017、Zourdos 2016。',showCancel:false});},
  input(e){this.setData({['profile.'+e.currentTarget.dataset.field]:e.detail.value,saved:false});this.estimates();},
  choice(e){this.setData({['profile.'+e.currentTarget.dataset.field]:e.currentTarget.dataset.value,saved:false});this.estimates();},

@@ -12,6 +12,10 @@ project.private.config.json
 
 # User training exports and local backups
 three-lift-*.json
+jugetiezi-users-*.json
+big3-consented-research*.json
+research-data/
+research-models/
 backups/
 
 # Generated test output
@@ -21,3 +25,14 @@ test-results/
 art-originals/
 dist/
 .release-artifacts/
+runtime/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+*.db
+*.demo-credentials-*.json
+.wrangler/
+.edgeone/

@@ -39,6 +39,8 @@
     ['deadbug','死虫式','Dead bug','自重',['core'],['仰卧抬起四肢，腹部轻收。','交替伸展对侧手臂和腿。','在腰部稳定的范围内缓慢回收。'],'每侧计次，不为伸直而拱腰。',['plank']]
   ];
   rows.push(
+    ['machine-press','坐姿器械推胸','Seated machine chest press','器械',['chest','triceps','shoulders'],['调节座椅，使握把约在胸部高度，肩背贴稳靠垫，双脚踩地。','手腕稳定，向前推动握把，不耸肩或抬离靠背。','推至舒适伸展，不猛锁肘；有控制地回到起点。'],'器械轨迹与标重各不相同；首次使用单独试重，不从卧推 PB 换算。',['dbbench','pushup','cable-fly']],
+    ['weighted-bridge','杠铃负重臀桥','Weighted barbell glute bridge','杠铃',['glutes','hamstrings'],['仰卧地垫，肩背与头部接地，双脚踩稳；带护垫杠铃横放髋部，双手固定。','收腹抬髋，脚掌与肩背保持接地，杠铃随骨盆上升。','抬至肩、髋、膝近一直线，控制回落。'],'与靠凳臀推不同，肩背始终在地面；不要拱腰顶杠。装卸杠铃需留出安全空间。',['bridge','hip-thrust']],
     ['front-squat','前蹲','Front squat','杠铃',['quads','glutes','core'],['杠铃置于肩前，抬肘形成稳定支架。','足底踩稳，膝盖沿脚尖方向下蹲。','躯干稳定站起，保持抬肘。'],'勿用手腕独自承重；使用安全杆。',['goblet']],
     ['pause-squat','暂停深蹲','Paused squat','杠铃',['quads','glutes','core'],['上背架杠，吸气收紧躯干。','下蹲到可控深度，停约两秒，保持张力。','足底推地平稳站起。'],'暂停不放松腹部；不借底部反弹。',['squat']],
     ['tempo-squat','慢下放深蹲','Tempo squat','杠铃',['quads','glutes','core'],['稳定架杠并收紧躯干。','约三秒缓慢下蹲，足底均匀受力。','到可控深度后平稳站起。'],'控制速度优先于重量。',['goblet']],
@@ -68,8 +70,13 @@
     ['seated-calf','坐姿提踵','Seated calf raise','器械',['calves'],['前脚掌踩平台，大腿贴住压垫。','抬起脚跟至可控高度。','缓慢下放。'],'不弹震，调整压垫避免膝部不适。',['calf']],
     ['single-calf','单腿提踵','Single-leg calf raise','自重',['calves'],['单脚站稳，一手扶固定物。','抬起支撑脚脚跟。','缓慢下降，换侧。'],'每侧计次，先保证平衡。',['calf']]
   );
+  // Curated substitutions retain a related training role, not just a shared muscle.
+  const extraAlternatives={bench:['machine-press'], 'cable-fly':['machine-press'], pushup:['machine-press'], bridge:['weighted-bridge','hip-thrust'], 'hip-thrust':['weighted-bridge'], 'db-rdl':['weighted-bridge'], 'curl-leg':['weighted-bridge'], plank:['pallof','suitcase-hold'],deadbug:['pallof','suitcase-hold'],'side-plank':['pallof','suitcase-hold'],'bird-dog':['pallof','suitcase-hold'],'reverse-crunch':['pallof'],pallof:['suitcase-hold','deadbug'],'suitcase-hold':['pallof'],calf:['seated-calf'],'single-calf':['seated-calf'],'incline-pushup':['dbbench'],dbbench:['cable-fly','machine-press']};
+  for(const row of rows)row[7]=[...new Set([...row[7],...(extraAlternatives[row[0]]||[])])];
   const groups={squat:['squat','goblet','split','legpress','front-squat','pause-squat','tempo-squat','reverse-lunge','step-up','leg-extension'],hinge:['deadlift','sumo','rdl','db-rdl','bridge','curl-leg','hip-thrust','back-extension'],push:['bench','dbbench','pushup','lateral','pressdown','pause-bench','close-bench','incline-dbbench','db-press','cable-fly','overhead-triceps','incline-pushup'],pull:['row','pulldown','facepull','curl','cable-row','barbell-row','onearm-row','assisted-pullup','reverse-fly','hammer-curl'],core:['plank','deadbug','calf','side-plank','bird-dog','pallof','reverse-crunch','suitcase-hold','seated-calf','single-calf']};
   const timed=['plank','side-plank','suitcase-hold'];
+  groups.hinge.push('weighted-bridge');
+  groups.push.push('machine-press');
   const unilateral=['split','reverse-lunge','step-up','onearm-row','deadbug','bird-dog','pallof','single-calf','side-plank','suitcase-hold'];
   const isolation=['leg-extension','curl-leg','lateral','pressdown','overhead-triceps','cable-fly','reverse-fly','curl','hammer-curl','calf','seated-calf','single-calf'];
   const highBack=['squat','front-squat','pause-squat','tempo-squat','deadlift','sumo','rdl','db-rdl','barbell-row'];
@@ -102,6 +109,7 @@
   };
   const media=typeof module!=='undefined'?require('./media-manifest'):(globalThis.MuscleMedia||{});
   for(const e of exercises){
+    if(e.id==='weighted-bridge')e.purpose='补充地面支撑下的髋伸训练，重点训练臀部；不能等同替代腿弯举的屈膝功能，与凳上臀推分别校准';
     e.primaryMuscles=primary[e.id]||e.primaryMuscles;
     e.secondaryMuscles=e.muscles.filter(m=>!e.primaryMuscles.includes(m));
     e.media={...e.media,status:media[e.id]?.status||'pending',available:media[e.id]?.status==='reviewed',frames:media[e.id]?.frames||[],phaseCues:phaseCues[e.id]||e.steps.slice(0,e.media.phases.length)};

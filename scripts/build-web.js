@@ -1,8 +1,8 @@
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const root=path.resolve(__dirname,'..'),out=path.join(root,'dist');
-const M=require('../miniprogram/lib/media-manifest');
-const files=['preview/index.html','preview/figures.html','preview/app.js','preview/coach-ui.js','preview/style.css',
- ...['media-manifest','catalog','science','planner','coach','store','anatomy'].map(name=>'miniprogram/lib/'+name+'.js'),
+const M=require('../miniprogram/lib/media-manifest'),Release=require('../miniprogram/lib/release');
+const files=['preview/index.html','preview/figures.html','preview/app.js','preview/coach-ui.js','preview/style.css','preview/workbench.js','preview/workbench.css','preview/sync.js','preview/account-ui.js','preview/routines.js','preview/routines.css','preview/board.js','preview/board.css','preview/drag-sort.js','preview/motion.css','preview/site-settings.js','preview/echo-admin.css',
+ ...['release','echo-settings','media-manifest','catalog','science','planner','coach','routines','store','anatomy'].map(name=>'miniprogram/lib/'+name+'.js'),
  'miniprogram/assets/equipment.jpg',...Object.values(M).map(m=>'miniprogram'+m.path)];
 const allowed=new Set([...files,'vendor/lucide.js','vendor/LICENSE.lucide','index.html','404.html','_headers','release.json']);
 function checkTree(dir){if(!fs.existsSync(dir))return;for(const entry of fs.readdirSync(dir,{withFileTypes:true})){
@@ -25,9 +25,9 @@ for(const file of ['preview/index.html','preview/figures.html']){
   return `${attr}="${url}?v=${hash}"`;
  });write(file,html);
 }
-write('index.html','<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>三项训练</title><script>location.replace("./preview/index.html"+location.search+location.hash)</script><a href="./preview/index.html">进入三项训练</a></html>\n');
-write('404.html','<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>页面不存在</title><h1>页面不存在</h1><a href="/">返回三项训练</a></html>\n');
+write('index.html','<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>举个铁子</title><script>location.replace("./preview/index.html"+location.search+location.hash)</script><a href="./preview/index.html">进入举个铁子</a></html>\n');
+write('404.html','<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>页面不存在</title><h1>页面不存在</h1><a href="/">返回举个铁子</a></html>\n');
 write('_headers','/*\n  Cache-Control: no-cache\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n  X-Frame-Options: DENY\n  Permissions-Policy: camera=(), microphone=(), geolocation=()\n');
 const hashes={};for(const file of [...allowed].filter(f=>f!=='release.json').sort())hashes[file]=crypto.createHash('sha256').update(fs.readFileSync(path.join(out,file))).digest('hex');
-write('release.json',JSON.stringify({format:1,dataStorage:'local-device-only',files:hashes},null,2)+'\n');
+write('release.json',JSON.stringify({format:1,app:Release,dataStorage:'local-device-only',files:hashes},null,2)+'\n');
 console.log('Web build ready: '+allowed.size+' files, '+Object.keys(M).length+' exercise image sets. No user data included.');

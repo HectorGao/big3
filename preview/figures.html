@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>50 动作教学库</title>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>举个铁子 · 动作教学库</title>
 <style>body{font:14px/1.7 sans-serif;margin:24px;background:#fafbf9;color:#263a30}main{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}img{width:100%;display:block;background:white}h1{font-size:26px}h2{font-size:18px}p{font-size:13px;color:#65736b}section{border-bottom:1px solid #dfe6da;padding:12px 0}a{color:#285947}.pending{padding:40px;background:#f1eee8}.status{color:#9b453c}@media(max-width:700px){main{grid-template-columns:1fr}}</style></head>
-<body><a href="./index.html#atlas">返回肌肉图谱</a><h1>50 动作教学库</h1><p id="coverage"></p><main></main>
-<script src="../miniprogram/lib/media-manifest.js"></script><script src="../miniprogram/lib/catalog.js"></script><script>
-const list=MuscleCatalog.exercises;document.querySelector('#coverage').textContent=list.filter(e=>e.media.available).length+' / 50 套已通过初步视觉检查。专业教练实地审定尚未完成。';
+<body><a href="./index.html#atlas">返回肌肉图谱</a><h1>举个铁子 · 动作教学库</h1><p id="release-label"></p><p id="coverage"></p><main></main>
+<script src="../miniprogram/lib/release.js"></script><script>document.querySelector("#release-label").textContent="v"+MuscleRelease.version+" · "+MuscleRelease.build;</script><script src="../miniprogram/lib/media-manifest.js"></script><script src="../miniprogram/lib/catalog.js"></script><script>
+const list=MuscleCatalog.exercises;document.querySelector('#coverage').textContent=list.filter(e=>e.media.available).length+' / '+list.length+' 套已通过初步视觉检查。专业教练实地审定尚未完成。';
 for(const e of list){const s=document.createElement('section');const h=document.createElement('h2');h.textContent=e.name;s.append(h);
 if(e.media.available){const img=new Image();img.src='../miniprogram'+e.media.path;img.alt=e.name+'完整阶段图';img.loading='lazy';s.append(img);}else{const p=document.createElement('p');p.className='pending';p.textContent=e.media.status==='needs-regeneration'?'姿势检查未通过，待重绘':'教学图制作中';s.append(p);}
 for(const text of [e.weightUnit+' · '+e.unit,e.steps.join(' '),e.caution]){const p=document.createElement('p');p.textContent=text;s.append(p);}document.querySelector('main').append(s);}

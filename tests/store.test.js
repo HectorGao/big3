@@ -5,7 +5,7 @@ const P=require('../miniprogram/lib/planner');
 const profile={age:30,weight:75,experience:'trained',goal:'strength',days:[1,3,5],increment:2.5,pb:{}};
 function setup(){const memory={};const driver={getStorageSync:k=>memory[k],setStorageSync:(k,v)=>{memory[k]=v;}};return {memory,driver,store:createStore(driver)};}
 test('storage round trip and raw export preserve actual user data',()=>{
- const {store}=setup();const d=store.load();d.profile=profile;store.save(d);assert.deepEqual(store.load().profile,profile);assert.equal(JSON.parse(store.exportRaw()).version,3);
+ const {store}=setup();const d=store.load();d.profile=profile;store.save(d);assert.deepEqual(store.load().profile,profile);assert.equal(JSON.parse(store.exportRaw()).version,4);
 });
 test('corrupt storage is not silently replaced',()=>{const {store,driver}=setup();driver.setStorageSync('three-lift-v1','bad-json');assert.throws(()=>store.load(),/未覆盖/);assert.equal(store.exportRaw(),'bad-json');});
 test('write failure is surfaced',()=>{const {store,driver}=setup();driver.setStorageSync=()=>{throw Error('quota');};assert.throws(()=>store.save(store.load()),/quota/);});

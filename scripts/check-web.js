@@ -4,6 +4,7 @@ assert.equal(release.dataStorage,'local-device-only');
 for(const [file,hash] of Object.entries(release.files)){
  assert.ok(!/(?:^|\/)(?:node_modules|art-originals|tests|docs|\.git|\.env|\.openai)(?:\/|$)/.test(file));
  assert.equal(crypto.createHash('sha256').update(fs.readFileSync(path.join(root,file))).digest('hex'),hash,file);
+ if(/\.(js|html|json|css)$/.test(file))assert.ok(!/DemoTrain!\d{4}/.test(fs.readFileSync(path.join(root,file),'utf8')),'Legacy demo credential leaked into '+file);
 }
 for(const file of ['preview/index.html','preview/figures.html']){
  const html=fs.readFileSync(path.join(root,file),'utf8');
@@ -15,4 +16,4 @@ for(const file of ['preview/index.html','preview/figures.html']){
 }
 const C=require('../miniprogram/lib/catalog');for(const e of C.exercises){assert.equal(e.media.available,true);assert.ok(fs.existsSync(path.join(root,'miniprogram'+e.media.path)));}
 assert.ok(fs.existsSync(path.join(root,'index.html')));assert.ok(!fs.existsSync(path.join(root,'preview/server.js')));
-console.log('PASS production assets, relative links, 50 media sets, content hashes, source/data exclusion');
+console.log('PASS production assets, relative links, '+C.exercises.length+' media sets, content hashes, source/data exclusion');

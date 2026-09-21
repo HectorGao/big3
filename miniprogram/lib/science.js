@@ -1,5 +1,8 @@
 (function () {
   const sources = [
+    {id:'AUTO21',title:'Larsen 等（2021）：负荷与训练量自我调节系统综述',url:'https://pubmed.ncbi.nlm.nih.gov/33520457/',note:'14 项研究、356 名健康参与者；支持结合 RIR/RPE 与表现调节，不验证本软件 1–5 档的百分比。'},
+    {id:'READY24',title:'2024：训练前准备度自我调节范围综述',url:'https://pubmed.ncbi.nlm.nih.gov/38665139/',note:'主观准备度量表的效度证据有限；应结合热身表现和实际余力，不凭单一评分测量生理恢复。'},
+    {id:'MACHINE23',title:'Haugen 等（2023）：自由重量与器械训练荟萃分析',url:'https://pubmed.ncbi.nlm.nih.gov/37582807/',note:'成人研究中未检出增肌差异；力量提升具有测试动作特异性。器械标重不能换算成三大项 PB。'},
     {id:'ACSM26',title:'ACSM 2026：抗阻训练立场声明解读',url:'https://acsm.org/resistance-training-guidelines-update-2026/',note:'规律训练、力量训练偏重负荷、增肌重视周训练量；不支持人人通用的最优处方。'},
     {id:'ACSM09',title:'ACSM (2009) Progression models in resistance training',url:'https://pubmed.ncbi.nlm.nih.gov/19204579/',note:'依据训练经验、目标安排负荷和休息；超过目标次数后渐进增加负荷。'},
     {id:'LOAD17',title:'Schoenfeld et al. (2017)：低负荷与高负荷荟萃分析',url:'https://pubmed.ncbi.nlm.nih.gov/28834797/',note:'较高负荷更有利于最大力量；增肌可发生在不同负荷范围。该研究纳入方案练至力竭，不等于建议每组力竭。'},
@@ -13,9 +16,9 @@
   const round = n=>Math.round(n*10)/10;
   const fatigueLevels=[
     {value:1,label:'精力充沛',description:'睡眠和精神状态良好，热身轻松，无明显酸痛。',action:'按原计划训练；不因状态好自动冲击 PB。',load:1,sets:0,rir:0},
-    {value:2,label:'正常可练',description:'有轻微日常疲劳，但动作稳定，热身表现接近平时。',action:'保持计划负荷，逐组核对目标余力。',load:1,sets:0,rir:0},
+    {value:2,label:'正常可练',description:'有轻微日常疲劳，但动作稳定，热身表现接近平时。',action:'正常组数，负荷预留约 2.5% 余量；器械取整可能与 1 档相同，仍需核对余力。',load:0.975,sets:0,rir:1},
     {value:3,label:'中等疲劳',description:'睡眠不足或酸痛明显，热身比平时吃力，但无疼痛。',action:'工作重量约减 10%，每动作减 1 组，多留 1 次余力。',load:0.9,sets:-1,rir:1},
-    {value:4,label:'明显疲劳',description:'恢复较差，注意力或动作控制下降，日常活动也觉得累。',action:'转恢复日，减少动作和组数，不安排大重量。',load:1,sets:0,rir:0},
+    {value:4,label:'明显疲劳',description:'恢复较差，注意力或动作控制下降，日常活动也觉得累。',action:'转恢复日，主项最多 1 组低负荷，辅助最多 1 组；至少保留 5 次余力，可直接跳过。',load:1,sets:-1,rir:2},
     {value:5,label:'不适合负重',description:'极度疲劳、身体不适，或热身时无法稳定控制动作。',action:'今天休息；之后的计划仅供预览，恢复后重新评估。',load:0,sets:0,rir:0}
   ];
   function fatigueInfo(value=2){const level=fatigueLevels.find(l=>l.value===Number(value));if(!level)throw Error('疲劳程度必须为 1–5 的整数');return level;}

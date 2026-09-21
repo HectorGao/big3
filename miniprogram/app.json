@@ -1,6 +1,6 @@
 {
   "pages": ["pages/overview/overview","pages/today/today","pages/atlas/atlas","pages/history/history","pages/profile/profile"],
-  "window": {"navigationBarTitleText":"三项训练","navigationBarBackgroundColor":"#fafbf9","navigationBarTextStyle":"black","backgroundColor":"#fafbf9"},
+  "window": {"navigationBarTitleText":"举个铁子","navigationBarBackgroundColor":"#fafbf9","navigationBarTextStyle":"black","backgroundColor":"#fafbf9"},
   "tabBar": {"color":"#767d77","selectedColor":"#cf4141","backgroundColor":"#ffffff","borderStyle":"white","list":[
     {"pagePath":"pages/overview/overview","text":"概览"},
     {"pagePath":"pages/today/today","text":"今日训练"},

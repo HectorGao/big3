@@ -2,6 +2,7 @@
   const P=typeof module!=='undefined'?require('./planner'):globalThis.MusclePlanner;
   const S=typeof module!=='undefined'?require('./science'):globalThis.MuscleScience;
   const C=typeof module!=='undefined'?require('./catalog'):globalThis.MuscleCatalog;
+  const Release=typeof module!=='undefined'?require('./release'):globalThis.MuscleRelease;
   const labels={...P.modes,deload:'减量日',test:'PB 测试日',assessment:'次极限评估'};
   const add=(date,n)=>{const d=new Date(date+'T12:00:00');d.setDate(d.getDate()+n);return P.dateKey(d);};
   const actual=(data,date)=>data.history.filter(r=>!P.validateRecord(r)&&r.date<=date).sort((a,b)=>b.date.localeCompare(a.date));
@@ -46,7 +47,11 @@
   }
   function effectiveProfile(data,date){
     const p=JSON.parse(JSON.stringify(data.profile));
-    for(const a of achievements(data,date)){if(a.baseline)p.pb[a.id]={weight:a.baseline.weight,reps:a.baseline.reps,date:a.baseline.date};if(a.measured&&a.measured.source!=='档案声明的单次 PB'&&(!p.pb[a.id]||a.measured.date>=p.pb[a.id].date))p.pb[a.id]={weight:a.measured.weight,reps:1,date:a.measured.date};}
+    for(const a of achievements(data,date)){
+      // A historical estimate must not replace a newer, explicitly supplied PB.
+      if(a.baseline&&(!p.pb[a.id]||p.pb[a.id].date>date||a.baseline.date>p.pb[a.id].date))p.pb[a.id]={weight:a.baseline.weight,reps:a.baseline.reps,date:a.baseline.date};
+      if(a.measured&&a.measured.source!=='档案声明的单次 PB'&&(!p.pb[a.id]||a.measured.date>=p.pb[a.id].date))p.pb[a.id]={weight:a.measured.weight,reps:1,date:a.measured.date};
+    }
     return p;
   }
   function testStatus(data,lift,date=P.dateKey(),input){
@@ -73,9 +78,12 @@
     if(P.validateProfile(data.profile))return {...P.makePlan({profile:data.profile,lift,date}),...flags,effectiveMode:'setup',adjustments:[],canStart:false,skipAllowed:false};
     const history=actual(data,date),f=input||feedback(data,date)||{fatigue:2,pain:false};
     const profile=effectiveProfile(data,date),related=recovery(data,date,input).filter(m=>C.lifts.find(l=>l.id===lift).muscles.includes(m.id));
-    const limited=related.some(m=>m.level==='reduce'||m.level==='rest');
+    const limited=related.some(m=>m.days!==null&&m.days<2||m.days!==null&&m.days<3&&m.hard>=3||Number(f.soreness?.[m.id])>=2);
     const status=testStatus(data,lift,date,input),adjustments=[];
-    if(Array.isArray(profile.equipment)&&!profile.equipment.includes('杠铃'))return {...flags,lift,date,mode:'rest',label:labels.rest,effectiveMode:'rest',adjustments:['当前未选择可用杠铃，不能生成该主项负重处方。请先确认器械，或补记已发生的训练。'],skipAllowed:true,exercises:[],canStart:false,fatigue:S.fatigueInfo(f.fatigue),readiness:f,recovery:related,reason:'缺少主项器械，不将其他动作能力换算为三大项重量。'};
+    const allowed=id=>!Array.isArray(profile.equipment)||profile.equipment.includes(C.byId(id).equipment);
+    const primary=allowed(lift)?lift:{squat:['legpress','goblet','split'],bench:['machine-press','dbbench','pushup','cable-fly'],deadlift:['db-rdl','curl-leg','bridge']}[lift].find(allowed);
+    if(!primary)return {...flags,lift,date,mode:'rest',label:labels.rest,effectiveMode:'rest',adjustments:['当前类型没有适合该项目的动作，请调整类型筛选。'],skipAllowed:true,exercises:[],canStart:false,fatigue:S.fatigueInfo(f.fatigue),readiness:f,recovery:related,reason:'不使用无关动作凑数。'};
+    if(primary!==lift)adjustments.push('本次改为 '+C.byId(primary).name+' 为主的相关肌群训练，不等同于三大项专项练习，器械成绩不会更新三大项 PB。');
     const last=history.find(r=>r.lift===lift&&r.completed);
     let mode=requestedMode||options.suggestedMode||(last?.mode==='volume'?'intensity':'volume');
     const pb=profile.pb[lift];
@@ -100,10 +108,13 @@
       adjustments.push('疼痛、明显不适或疲劳 5 档，不生成负重建议。');
       return {...flags,lift,date,mode:'rest',label:labels.rest,effectiveMode:'rest',adjustments,skipAllowed:true,exercises:[],canStart:false,fatigue:S.fatigueInfo(f.fatigue),recovery:related,reason:adjustments.join(' ')};
     }
+    if(primary!==lift&&['test','assessment'].includes(mode)){mode='volume';adjustments.push('当前不是三大项原动作，改为相关肌群容量训练，不进行极限测试。');}
     const muscle=profile.goal==='muscle',beginner=profile.experience==='beginner';
     const doses={volume:[beginner?2:3,lift==='deadlift'?5:muscle?8:6,3,180],intensity:[lift==='deadlift'?2:3,3,2,240],technique:[2,5,4,120],recovery:[2,5,5,120],deload:[2,lift==='deadlift'?5:6,4,180],assessment:[1,5,2,240],test:[1,1,1,300]};
     const normal=history.find(r=>r.lift===lift&&r.completed&&['volume','intensity'].includes(r.mode));
     if(mode==='deload')doses.deload[0]=Math.max(1,Math.ceil((normal?work(normal).filter(s=>s.exercise===lift).length:3)/2));
+    if(primary!==lift&&mode==='intensity')doses.intensity=[2,6,3,180];
+    if(Number(f.fatigue)===4)doses.recovery[0]=1;
     const [sets,reps,rir,rest]=doses[mode];
     let ids=accessories[lift][mode==='intensity'?'intensity':'volume'].slice();
     if(['recovery','technique'].includes(mode))ids=['deadbug'];
@@ -121,8 +132,8 @@
     }
     const equipment=profile.equipment;
     if(Array.isArray(equipment))ids=ids.map(id=>{
-      const e=C.byId(id);if(e.equipment==='自重'||equipment.includes(e.equipment))return id;
-      const substitute=e.alternatives.map(C.byId).find(x=>(x.equipment==='自重'||equipment.includes(x.equipment))&&!x.fatigueTags.includes('腰背承重')&&x.muscles.some(m=>e.muscles.includes(m)));
+      const e=C.byId(id);if(equipment.includes(e.equipment))return id;
+      const substitute=e.alternatives.map(C.byId).find(x=>equipment.includes(x.equipment)&&!x.fatigueTags.includes('腰背承重')&&x.muscles.some(m=>e.muscles.includes(m)));
       if(substitute){adjustments.push(e.name+' 器械不可用，改为 '+substitute.name+'；作用不完全等价，重新确认负荷。');return substitute.id;}
       adjustments.push(e.name+' 器械不可用，本次省略。');return null;
     }).filter((id,index,list)=>id&&list.indexOf(id)===index);
@@ -135,20 +146,16 @@
       if(week+forecast>=10){adjustments.push(e.name+' 近七天实际 '+week+' 组'+(forecast?'，另有预计 '+forecast+' 组':'')+'，本次不再叠加；预计组不计实际统计。');return false;}
       return true;
     });
-    const exercises=[lift,...ids].map((id,index)=>{
+    const exercises=[primary,...ids.filter(id=>id!==primary)].map((id,index)=>{
       const e=C.byId(id),main=index===0;
       const count=main?sets:mode==='recovery'||mode==='deload'||mode==='technique'?1:2;
       const repeats=main?reps:e.unit==='秒'?20:e.group==='core'?8:e.isolation?12:10;
       const reserve=main?rir:Math.max(3,rir);
       const result=P.prescribe(id,profile,history,mode,{sets:count,reps:repeats,rir:reserve,main,date,calibrations:data.calibrations||[],machineId:profile.machineIds?.[id]||'default'});
       result.rest=main?rest:e.group==='core'?90:120;
-      result.selectionReason=main?'直接练习'+C.lifts.find(l=>l.id===lift).name+'专项动作，保留可比较的同动作记录。':e.purpose+'；'+(lift==='deadlift'?'重硬拉后避免重复高腰背负担。':'补充主项需要的训练量，不根据模板猜测个人弱项。');
+      result.selectionReason=main?(primary===lift?'直接练习'+C.lifts.find(l=>l.id===lift).name+'专项动作，保留可比较的同动作记录。':'按已选器械训练相关肌群；'+e.purpose+'。这不是三大项等价替代。'):e.purpose+'；'+(lift==='deadlift'?'重硬拉后避免重复高腰背负担。':'补充主项需要的训练量，不根据模板猜测个人弱项。');
       if(id===supplement)result.selectionReason='补足本周训练：可训练日较少，近期没有对应动作模式的实际训练。此动作不是主项专项辅助，也不代表发现个人弱点。';
-      if(Number(f.fatigue)===3&&mode!=='recovery'){
-        if(result.weight!==null&&result.weight>0&&e.loadConvention!=='assistance')result.weight=S.roundLoad(result.weight*.9,result.increment);
-        result.sets=Math.max(1,result.sets-1);result.rir=e.unit==='秒'?null:Math.max(4,result.rir||4);
-        result.loadSource+='；中等疲劳下保守降量';result.source=result.loadSource;
-      }
+      applyReadiness(result,f.fatigue,mode);
       if(mode==='test'){
         const pb=S.estimatePB(profile.pb[lift]?.weight,profile.pb[lift]?.reps);
         if(pb){result.weight=S.roundLoad(pb.low*.9,Number(profile.increment));result.loadSource='近期同项能力约 90% 的保守首试；后续逐次确认，不预排极限。';result.calibrationRequired=false;}
@@ -158,7 +165,7 @@
       return result;
     });
     const main=exercises[0],warmupSets=main.weight>0?[{weight:S.roundLoad(main.weight*.4,Number(profile.increment)),reps:5},{weight:S.roundLoad(main.weight*.65,Number(profile.increment)),reps:3},{weight:S.roundLoad(main.weight*.8,Number(profile.increment)),reps:1}].filter(s=>s.weight>0&&s.weight<main.weight):[];
-    return {...flags,lift,date,mode,label:labels[mode],readiness:JSON.parse(JSON.stringify(f)),effectiveMode:mode,adjustments,skipAllowed:['recovery','deload'].includes(mode),exercises,fatigue:S.fatigueInfo(f.fatigue),recovery:related,testStatus:status,planId:['test','assessment'].includes(mode)&&status.request?status.request.id:date+':'+lift,
+    return {...flags,lift,date,primaryExerciseId:primary,specialist:primary===lift,mode,label:labels[mode],researchContext:{schema:1,date,plannerVersion:Release?.version||null,build:Release?.build||null,profile:{age:profile.age,weight:profile.weight,experience:profile.experience,goal:profile.goal}},readiness:JSON.parse(JSON.stringify(f)),effectiveMode:mode,adjustments,skipAllowed:['recovery','deload'].includes(mode),exercises,fatigue:S.fatigueInfo(f.fatigue),recovery:related,testStatus:status,planId:['test','assessment'].includes(mode)&&status.request?status.request.id:date+':'+lift,
       reason:'先依据当天恢复限制，再按训练日目标选择动作；辅助重量只来自同动作记录或已确认试重。 '+(status.request?status.reason:'未来建议不计实际负荷。'),
       warmup:['轻活动 5–8 分钟，再逐组接近工作重量。','待试重动作先用可控轻负荷确认动作，不以试重冲击极限。','热身时疼痛、动作失控或余力不足，停止或减量。'],warmupSets,rpe:mode==='test'?'逐次确认':String(10-main.rir),estimatedMinutes:exercises.length>2?50:25,trainingMax:main.capacity,scienceNote:'组次、间隔与试重阈值是可校准的产品规则，不保证个人最优效果。'};
   }
@@ -196,6 +203,13 @@
     }
     return result;
   }
+  function frozenPlan(s){
+ const exercises=[...new Set(s.sets.map(r=>r.exercise))].map(id=>{
+  const rows=s.sets.filter(r=>r.exercise===id),r=rows[0],e=C.byId(id);
+  return {...e,main:id===(s.primaryExerciseId||s.lift),sets:rows.length,reps:r.targetReps||r.reps,weight:r.targetWeight??null,rir:r.targetRir,rest:r.rest,calibrationRequired:r.targetWeight==null,loadSource:r.loadSource,selectionReason:r.selectionReason,doseReason:r.doseReason,prescribedSets:rows.map(x=>({weight:x.targetWeight,reps:x.targetReps,rir:x.targetRir}))};
+ });
+ return {lift:s.lift,date:s.date,mode:s.mode,label:labels[s.mode],exercises,canStart:false,skipAllowed:false,requestedMode:s.requestedMode,adjustments:s.adjustments||[],fatigue:S.fatigueInfo(s.readiness?.fatigue||2),estimatedMinutes:45,rpe:s.rpe,reason:'进行中训练的原定目标。实际填写的重量、次数和完成状态保留在当前训练中。'};
+}
   function overview(data,date=P.dateKey()){
     const history=actual(data,date),schedule=rolling(data,date);
     const trends=C.lifts.map(l=>({...l,weeks:Array.from({length:8},(_,i)=>{
@@ -204,23 +218,68 @@
     }),count:history.filter(r=>r.lift===l.id&&P.daysBetween(date,r.date)<28).length}));
     return {schedule,trends,achievements:achievements(data,date),recovery:recovery(data,date),recent:history.slice(0,5),next:schedule.find(p=>p.exercises.length)||null};
   }
+  function applyReadiness(e,value,mode){
+    const f=S.fatigueInfo(value);
+    if(value>=5)return e;
+    if(!['recovery','deload'].includes(mode)&&[2,3].includes(Number(value))){
+      if(e.weight!==null&&e.weight>0)e.weight=e.loadConvention==='assistance'?e.weight+e.increment:S.roundLoad(e.weight*f.load,e.increment);
+      e.sets=Math.max(1,e.sets+f.sets);e.rir=e.unit==='秒'?null:Math.min(5,(e.rir||3)+f.rir);
+      e.loadSource+='；疲劳 '+value+' 档保守调整（产品规则，需热身核对）';e.source=e.loadSource;
+    }
+    return e;
+  }
+  function chooseExercise(data,plan,id,replaceId){
+    const e=C.byId(id),old=replaceId&&plan.exercises.find(x=>x.id===replaceId);
+    if(!e||replaceId&&!old||old?.main)throw Error('不能替换主导动作');
+    if(['rest','setup','test','assessment'].includes(plan.mode)||plan.readiness?.pain||plan.readiness?.fatigue>=5)throw Error('本日不添加负重动作');
+    if(plan.exercises.some(x=>x.id===id))throw Error('计划已包含该动作');
+    if(data.profile.equipment&&!data.profile.equipment.includes(e.equipment))throw Error('该器械类型未勾选');
+    if(old&&!e.muscles.some(m=>old.muscles.includes(m)))throw Error('与被替换动作无共同目标肌群');
+    if((plan.lift==='deadlift'||['recovery','deload'].includes(plan.mode))&&e.fatigueTags.includes('腰背承重'))throw Error('本日不额外叠加腰背承重');
+    const status=recovery(data,plan.date,plan.readiness);
+    if(status.some(m=>e.muscles.includes(m.id)&&(Number(plan.readiness?.soreness?.[m.id])>=2||m.days!==null&&m.days<1)))throw Error('相关肌群需要恢复');
+    const light=['recovery','technique','deload'].includes(plan.mode);
+    const technical=['front-squat','pause-squat','tempo-squat','pause-bench','close-bench','sumo'].includes(id);
+    const count=old?.sets||(light?1:2),limit=light?4:data.profile.experience==='beginner'?14:24;
+    if(!old&&(plan.exercises.length>=8||plan.exercises.reduce((n,x)=>n+x.sets,0)+count>limit))throw Error('本日已达到保守训练量上限，不再加组');
+    const weeks=actual(data,plan.date).filter(r=>P.daysBetween(plan.date,r.date)<7).flatMap(work).filter(s=>s.exercise===id).length;
+    if(weeks+count>10)throw Error('该动作近期组数较多，暂不继续叠加');
+    const result=P.prescribe(id,effectiveProfile(data,plan.date),actual(data,plan.date),plan.mode,{sets:count,reps:e.unit==='秒'?20:technical?5:e.group==='core'?8:e.isolation?12:10,rir:light?5:technical?4:3,date:plan.date,calibrations:data.calibrations||[],machineId:data.profile.machineIds?.[id]||'default'});
+    applyReadiness(result,plan.readiness?.fatigue||2,plan.mode);
+    if(old)result.sets=old.sets;
+    if(technical)result.rest=180;
+    result.selectionReason=(old?'用户替换 '+old.name+'；':'用户补充训练；')+e.purpose+'。不代表已识别个人弱项，重量独立校准。';
+    result.doseReason=(technical?'技术变式采用低次数和较长休息，优先保持动作质量（产品规则）。':'')+result.sets+' 组 × '+result.reps+' '+e.unit+'；'+(result.rir===null?'以姿势稳定为准':'预计还能做 '+result.rir+' 次')+'，休息 '+result.rest+' 秒。';
+    result.prescribedSets=Array.from({length:result.sets},(_,i)=>({index:i+1,weight:result.weight,reps:result.reps,rir:result.rir,rest:result.rest}));
+    return result;
+  }
+  function exerciseOptions(data,plan,{muscle,equipment,query='',replaceId}={}){
+    return C.exercises.filter(e=>(!muscle||e.muscles.includes(muscle))&&(!equipment||e.equipment===equipment)&&(e.name+' '+e.en).toLowerCase().includes(query.toLowerCase())).map(e=>{
+      let disabledReason='';try{chooseExercise(data,plan,e.id,replaceId);}catch(error){disabledReason=error.message;}
+      return {...e,disabledReason};
+    });
+  }
   function replaceExercise(data,plan,originalId,replacementId){
     const original=plan.exercises.find(e=>e.id===originalId),next=C.byId(replacementId);
     if(!original||original.main||!original.alternatives.includes(replacementId)||!next)throw Error('不能替换为该动作');
     if(plan.exercises.some(e=>e.id===replacementId))throw Error('计划中已有该动作，不重复叠加');
     if((plan.lift==='deadlift'||['recovery','deload'].includes(plan.mode))&&next.fatigueTags.includes('腰背承重'))throw Error('本日不叠加腰背承重动作');
-    if(data.profile.equipment&&next.equipment!=='自重'&&!data.profile.equipment.includes(next.equipment))throw Error('该器械不可用');
-    if(recovery(data,plan.date).some(m=>next.primaryMuscles.includes(m.id)&&m.level==='rest'))throw Error('替代动作的相关肌群需先恢复');
-    const e=P.prescribe(next.id,data.profile,actual(data,plan.date),plan.mode,{sets:original.sets,reps:next.unit==='秒'?20:next.group==='core'?8:next.isolation?12:10,rir:original.rir??3,date:plan.date,calibrations:data.calibrations||[],machineId:data.profile.machineIds?.[next.id]||'default'});
+    if(data.profile.equipment&&!data.profile.equipment.includes(next.equipment))throw Error('该动作类型未勾选');
+    if(recovery(data,plan.date,plan.readiness).some(m=>next.muscles.includes(m.id)&&(m.level==='rest'||Number(plan.readiness?.soreness?.[m.id])>=2)))throw Error('替代动作的相关肌群需先恢复');
+    const reserve=Math.max(original.rir??3,plan.mode==='recovery'?5:['technique','deload'].includes(plan.mode)?4:3);
+    const e=P.prescribe(next.id,data.profile,actual(data,plan.date),plan.mode,{sets:original.sets,reps:next.unit==='秒'?20:next.group==='core'?8:next.isolation?12:10,rir:reserve,date:plan.date,calibrations:data.calibrations||[],machineId:data.profile.machineIds?.[next.id]||'default'});
     e.selectionReason='用户替换 '+original.name+'；'+next.purpose+'。替代作用不完全相同，不沿用原动作能力。';
     e.doseReason=e.sets+' 组 × '+e.reps+' '+e.unit+'，'+(e.rir===null?'以姿势稳定为停止标准':'预计还能做 '+e.rir+' 次');
     e.prescribedSets=Array.from({length:e.sets},(_,i)=>({index:i+1,weight:e.weight,reps:e.reps,rir:e.rir,rest:e.rest}));
     return e;
   }
+  function replacementOptions(data,plan,id){
+    return (plan.exercises.find(e=>e.id===id)?.alternatives||[]).filter(next=>{try{replaceExercise(data,plan,id,next);return true;}catch{return false;}}).map(C.byId);
+  }
   function session(plan){
     if(!plan.canStart||plan.previewOnly)throw Error('未来或过去日期只能查看建议，请在实际训练日期重新评估');
     const s=P.createSession(plan);
-    return {...s,planId:plan.planId,requestedMode:plan.requestedMode,effectiveMode:plan.effectiveMode||plan.mode,adjustments:plan.adjustments||[],readiness:plan.readiness||{fatigue:plan.fatigue.value,pain:false},sets:s.sets.map(row=>({...row,quality:true,success:true,pbAttempt:plan.mode==='test'}))};
+    return {...s,primaryExerciseId:plan.primaryExerciseId||plan.lift,specialist:plan.specialist!==false,planId:plan.planId,requestedMode:plan.requestedMode,effectiveMode:plan.effectiveMode||plan.mode,adjustments:plan.adjustments||[],readiness:plan.readiness||{fatigue:plan.fatigue.value,pain:false},sets:s.sets.map(row=>({...row,quality:true,success:true,pbAttempt:plan.mode==='test'}))};
   }
   function nextAttempt(s,profile){
     if(s.mode!=='test'||!s.protectionConfirmed)throw Error('请先确认保护条件');
@@ -229,6 +288,6 @@
     const step=Number(profile.increment);if(step/last.weight>.05)throw Error('器械档位过大，停止加重');
     return {...s,sets:[...s.sets,{...last,key:s.lift+'-'+rows.length,index:rows.length+1,weight:Number(last.weight)+step,targetWeight:Number(last.weight)+step,done:false,rir:null}]};
   }
-  const api={labels,add,feedback,recovery,achievements,testStatus,prescription,rolling,overview,session,nextAttempt,replaceExercise};
+  const api={labels,add,feedback,recovery,achievements,testStatus,prescription,rolling,overview,session,nextAttempt,replaceExercise,replacementOptions,frozenPlan,chooseExercise,exerciseOptions,applyReadiness};
   if(typeof module!=='undefined')module.exports=api;else globalThis.MuscleCoach=api;
 })();
