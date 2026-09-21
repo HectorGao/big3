@@ -1,6 +1,8 @@
-# GitHub 同步与静态托管
+# 举个铁子 · GitHub 同步与静态托管
 
 仓库：https://github.com/HectorGao/big3
+
+[项目首页](../README.md) · [文档导航](README.md) · [后端部署边界](../server/README.md)
 
 ## 已配置的同步方式
 
