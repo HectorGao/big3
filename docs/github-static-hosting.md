@@ -28,6 +28,14 @@ Actions 的检查任务仅有仓库内容读取权限；独立部署任务使用
 
 官方说明：[Actions](https://docs.github.com/en/actions/get-started/understand-github-actions)、[Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages)、[自定义发布工作流](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)。
 
+### 当前部署状态（2026-09-24）
+
+`4d1bdd7` 的 [检查与部署任务](https://github.com/HectorGao/big3/actions/runs/35891120597) 均成功，发布版本为 `0.2.8 / 20260924.1`。本地 194 项测试通过，并完成 `/big3/` 路径下的桌面/手机训练流程、52 套教学图共 153 阶段、错误页返回和离线账号提示验证。通过向 GitHub 服务指定已绑定 Host 读取发布清单，确认线上清单与本地逐项相同；这只验证了发布产物，不能替代普通浏览器访问验收。
+
+普通访问尚未通过：个人主页仓库 `HectorGao/HectorGao.github.io` 绑定了 `hectorgao.com`，本项目继承该设置。默认 HTTPS 入口返回 `301`，跳转至 `http://hectorgao.com/big3/`，但该域名的公开 DNS 当前指向其他主机，访问失败。此行为符合 GitHub 的[个人主页域名继承规则](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/about-custom-domains-and-github-pages)。
+
+可选修复是经用户确认后解除个人主页的旧 Pages 域名绑定，或给本项目另配独立子域名。前者会影响其他继承该绑定的 Pages 项目，后者需要单独配置 DNS；本次尚未更改个人主页绑定或任何 DNS。
+
 ## 登录后的训练记录放在哪里
 
 Pages 当前提供本机训练功能，**不提供账号登录或云端同步**。现有代码的登录请求发往同源 `/api/auth/*`，训练状态读写 `/api/state`，服务端按用户保存在 SQLite 中；Pages 不能运行这套 Node.js 后端，也不会把浏览器本地记录自动提交到 GitHub。
