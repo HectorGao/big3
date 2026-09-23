@@ -20,7 +20,7 @@
 
 | 文档 | 内容 |
 | --- | --- |
-| [GitHub 与静态托管](github-static-hosting.md) | 自动检查、发布产物、Cloudflare / EdgeOne 配置 |
+| [GitHub 与静态托管](github-static-hosting.md) | Actions、Pages 自动发布、训练记录存储边界、Cloudflare / EdgeOne 配置 |
 | [生产账号与每周备份](production-accounts-backup.md) | 正式管理员初始化、生产隔离、手动下载及恢复边界 |
 | [Cloudflare 发布记录](cloudflare-deployment.md) | 某次 Workers 静态上传的版本、校验与限制 |
 | [Sites 与域名接入](web-deployment.md) | 另一发布渠道的打包流程和 DNS 操作边界 |

@@ -1,5 +1,10 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path'),crypto=require('node:crypto');
 const {inspect}=require('../scripts/check-repository');
+test('static build rejects an unsafe public path before writing output',()=>{
+ const {spawnSync}=require('node:child_process');
+ const result=spawnSync(process.execPath,['scripts/build-web.js'],{cwd:path.resolve(__dirname,'..'),env:{...process.env,BIG3_BASE_PATH:'/big3/"<script>'},encoding:'utf8'});
+ assert.equal(result.status,1);assert.match(result.stderr,/BIG3_BASE_PATH must be an absolute directory path/);
+});
 test('publication check rejects credential patterns and private paths without printing values',()=>{
  for(const file of ['runtime/state.json','backups/data.json','research-data/dataset.json','account.sqlite','test.sqlite.demo-credentials-1.json','.env','secrets.pem'])assert.ok(inspect(file,'').length,file);
  for(const content of ['ghp_'+crypto.randomBytes(30).toString('hex'),'-----BEGIN '+'PRIVATE KEY-----','Demo'+'Train!'+String(2026)])assert.ok(inspect('source.js',content).length);

@@ -12,11 +12,29 @@
 2. 运行 `npm run build:static`：源码路径/敏感模式检查、全部共享与后端测试、白名单构建、发布目录校验。涉及界面时另跑对应浏览器测试。
 3. 审查修改，只暂存已确认的具体文件；运行 `npm run check:repo -- --staged --history` 检查暂存区和将公开的分支历史。
 4. 提交后推送 `origin main:main`。不强制推送，不推送 `sites`、本地恢复快照或其他引用。
-5. GitHub Actions 自动重复检查，并提供 `big3-static-提交哈希` 下载产物。检查失败时不会产出新的成功发布包。
+5. GitHub Actions 自动重复检查，并提供 `big3-static-提交哈希` 下载产物。主分支检查通过后，将同一份 `dist/` 发布到 GitHub Pages；PR 仅检查，不部署。检查失败不会部署新版本。
 
-自动检查不等于托管平台已经连接或网站已经上线。Actions 仅需仓库内容读取权限，不使用管理员口令、数据库、云厂商密钥，也不执行部署。平台的 Git 集成通常会自行触发构建，并不自动等待这个检查任务；因此平台构建命令也必须使用下方含测试的 `build:static`，失败则保留上一版。
+Actions 的检查任务仅有仓库内容读取权限；独立部署任务使用 `pages: write` 和 `id-token: write`，部署到 `github-pages` 环境。不使用个人 GitHub Token、管理员口令、数据库或云厂商密钥。以 Actions 部署任务成功和线上页面核验为上线依据。其他平台的 Git 集成通常会自行触发构建，并不自动等待这个检查任务；因此平台构建命令也必须使用下方含测试的 `build:static`。
 
 后续只推送审查后的主分支。远程出现其他修改时先获取并比较，不能覆盖；登录失效或测试失败时保留本地代码、报告失败。
+
+## GitHub Actions 与 GitHub Pages
+
+- **Actions** 是自动执行测试、构建和部署的工作流。任务运行结束后，临时执行环境不能作为持续运行的账号服务或数据库。
+- **Pages** 托管构建好的 HTML、CSS、JavaScript 和教学图。目标入口为 https://hectorgao.github.io/big3/ ，只发布白名单目录 `dist/`。
+- 仓库设置 **Settings → Pages → Source** 选择 **GitHub Actions**。工作流在 `main` 的 push 或手动运行通过检查后部署；不直接发布仓库根目录。
+- Pages 构建使用 `BIG3_BASE_PATH=/big3/ npm run build:static`，保证错误页也能返回项目入口。其他部署在根路径的网站继续使用默认 `/`。`npm run test:web` 会读取发布包的路径配置，检查跳转、账号服务不可用提示及手机/桌面训练页面。
+- GitHub Pages 不识别其他托管商的 `_headers` 配置文件，不能把该文件当作 Pages 已生效的响应头配置。
+
+官方说明：[Actions](https://docs.github.com/en/actions/get-started/understand-github-actions)、[Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages)、[自定义发布工作流](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)。
+
+## 登录后的训练记录放在哪里
+
+Pages 当前提供本机训练功能，**不提供账号登录或云端同步**。现有代码的登录请求发往同源 `/api/auth/*`，训练状态读写 `/api/state`，服务端按用户保存在 SQLite 中；Pages 不能运行这套 Node.js 后端，也不会把浏览器本地记录自动提交到 GitHub。
+
+正式多用户版本优先复用现有 Node.js 24 / SQLite 服务，在有持久化磁盘的服务器部署，并提供 HTTPS 与同源 `/api/`。Pages 可保留为本机体验入口；完整登录版使用后端所在的正式站点。GitHub 官方也说明 Pages 不应处理发送密码等敏感交易，见 [Pages 使用限制](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits)。
+
+`HectorGao/big3` 是公开代码仓库，不能存放私人训练档案、数据库或未加密的管理备份。如果确实要求 GitHub 留存数据，可另行设计服务端加密备份到独立私有仓库；备份不等于实时同步，密钥必须单独保管、验证恢复流程，写入凭证只能保留在服务端。该备份方案尚未实现，也没有上传任何用户记录。
 
 ## Cloudflare Pages
 
